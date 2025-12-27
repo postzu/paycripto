@@ -1,0 +1,105 @@
+{
+    "Common": {
+        "loading": "Carregando...",
+        "error": "Erro",
+        "back": "Voltar"
+    },
+    "Brand": {
+        "name": "PayCripto",
+        "tagline": "Envie cripto como se fosse PIX."
+    },
+    "Home": {
+        "title": "PayCripto",
+        "walletConnected": "Carteira conectada",
+        "actions": {
+            "transfer": "Transferir",
+            "transferHelper": "Enviar para alguem",
+            "receive": "Receber",
+            "receiveHelper": "QR Code ou endereco",
+            "deposit": "Depositar",
+            "depositHelper": "Comprar com PIX ou cartao",
+            "history": "Historico"
+        },
+        "disconnect": "Desconectar",
+        "titles": {
+            "sendOrReceive": "Enviar ou receber"
+        },
+        "receive": {
+            "title": "Receber cripto",
+            "subtitle": "Mostre o QR Code ou copie o endereco da sua carteira.",
+            "qrAlt": "QR Code do endereco da carteira",
+            "copyLabel": "Ou copie o endereco",
+            "copy": "Copiar",
+            "copied": "Copiado!"
+        },
+        "network": {
+            "defaultLabel": "Rede padrao",
+            "defaultValue": "Base",
+            "defaultMeta": "Base (mais rapida e barata)",
+            "defaultHint": "Ao enviar de outra carteira ou exchange, selecione sempre a rede Base.",
+            "defaultBadge": "Padrao",
+            "whyBase": "Por que Base?",
+            "whyBaseTitle": "Por que usar a rede Base?",
+            "whyBaseDesc": "Ela confirma quase na hora e tem taxas bem menores que a Ethereum. Para evitar erros e custos extras, use sempre a rede Base para receber.",
+            "currentUnknown": "Rede nao detectada"
+        },
+        "deposit": {
+            "title": "Comprar cripto com PIX ou cartao",
+            "subtitle": "Use um parceiro que aceite PIX ou cartao e envie a stablecoin para o endereco abaixo.",
+            "addressLabel": "Endereco para receber",
+            "networkLabel": "Rede",
+            "networkValue": "Base",
+            "openReceive": "Abrir tela Receber",
+            "examplesToggle": "Ver exemplos",
+            "examplesTitle": "Exemplos de apps que aceitam PIX e enviam para carteira:",
+            "examples": {
+                "buyWithPix": "Apps de compra de cripto com PIX",
+                "exchangeWithdraw": "Exchanges que permitem saque para carteira externa"
+            }
+        }
+    },
+    "Recipients": {
+        "title": "Transferencia Cripto",
+        "selectRecipient": "Selecione o destinatario",
+        "searchPlaceholder": "Buscar por nome ou endereco",
+        "new": "Novo",
+        "frequentContacts": "Contatos frequentes",
+        "allContacts": "Todos os contatos",
+        "noRecipients": "Nenhum destinatario encontrado",
+        "newRecipientTitle": "Adicionar destinatario",
+        "saveRecipient": "Salvar destinatario",
+        "addAddress": "Adicionar endereco",
+        "addressLabel": "Endereco",
+        "modes": {
+            "newContact": "Novo contato",
+            "newAddress": "Novo endereco"
+        },
+        "qr": {
+            "scan": "Ler QR Code",
+            "reading": "Lendo...",
+            "helper": "Use a camera ou uma imagem para preencher o endereco automaticamente"
+        },
+        "fields": {
+            "name": "Nome",
+            "address": "Endereco da carteira",
+            "existingContact": "Escolher contato",
+            "label": "Etiqueta (opcional)",
+            "labelPlaceholder": "Ex: Carteira principal",
+            "addressCount": "{count} enderecos salvos"
+        }
+    },
+    "Send": {
+        "title": "Enviar",
+        "sendCrypto": "Enviar cripto",
+        "to": "Para",
+        "chooseCrypto": "Escolha a cripto",
+        "howMuch": "Quanto voce quer enviar?",
+        "youAreSending": "Voce esta enviando",
+        "estimatedCost": "Custo estimado",
+        "calculating": "Calculando...",
+        "unableToEstimate": "Nao foi possivel estimar",
+        "conversionUnavailable": "Conversao indisponivel",
+        "confirmAndPay": "Confirmar e Pagar",
+        "continue": "Continuar"
+    }
+}

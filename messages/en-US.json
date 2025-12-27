@@ -1,0 +1,105 @@
+{
+    "Common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "back": "Back"
+    },
+    "Brand": {
+        "name": "PayCripto",
+        "tagline": "Send crypto as easily as PIX."
+    },
+    "Home": {
+        "title": "PayCripto",
+        "walletConnected": "Wallet connected",
+        "actions": {
+            "transfer": "Transfer",
+            "transferHelper": "Send to someone",
+            "receive": "Receive",
+            "receiveHelper": "QR Code or address",
+            "deposit": "Deposit",
+            "depositHelper": "Buy with PIX or card",
+            "history": "History"
+        },
+        "disconnect": "Disconnect",
+        "titles": {
+            "sendOrReceive": "Send or receive"
+        },
+        "receive": {
+            "title": "Receive crypto",
+            "subtitle": "Show the QR Code or copy your wallet address.",
+            "qrAlt": "Wallet address QR Code",
+            "copyLabel": "Or copy the address",
+            "copy": "Copy",
+            "copied": "Copied!"
+        },
+        "network": {
+            "defaultLabel": "Default network",
+            "defaultValue": "Base",
+            "defaultMeta": "Base (faster and cheaper)",
+            "defaultHint": "When sending from another wallet or exchange, always pick the Base network.",
+            "defaultBadge": "Default",
+            "whyBase": "Why Base?",
+            "whyBaseTitle": "Why use Base network?",
+            "whyBaseDesc": "It confirms almost instantly and costs much less than Ethereum. To avoid errors and extra costs, always use Base to receive.",
+            "currentUnknown": "Network not detected"
+        },
+        "deposit": {
+            "title": "Buy crypto with PIX or card",
+            "subtitle": "Use a partner that accepts PIX or card and send the stablecoin to the address below.",
+            "addressLabel": "Address to receive",
+            "networkLabel": "Network",
+            "networkValue": "Base",
+            "openReceive": "Open Receive screen",
+            "examplesToggle": "See examples",
+            "examplesTitle": "Examples of apps that accept PIX and send to a wallet:",
+            "examples": {
+                "buyWithPix": "Crypto purchase apps that accept PIX",
+                "exchangeWithdraw": "Exchanges that allow withdrawals to an external wallet"
+            }
+        }
+    },
+    "Recipients": {
+        "title": "Crypto Transfer",
+        "selectRecipient": "Select recipient",
+        "searchPlaceholder": "Search by name or address",
+        "new": "New",
+        "frequentContacts": "Frequent contacts",
+        "allContacts": "All contacts",
+        "noRecipients": "No recipients found",
+        "newRecipientTitle": "Add recipient",
+        "saveRecipient": "Save recipient",
+        "addAddress": "Add address",
+        "addressLabel": "Address",
+        "modes": {
+            "newContact": "New contact",
+            "newAddress": "New address"
+        },
+        "qr": {
+            "scan": "Scan QR Code",
+            "reading": "Scanning...",
+            "helper": "Use the camera or a photo to fill the address automatically"
+        },
+        "fields": {
+            "name": "Name",
+            "address": "Wallet address",
+            "existingContact": "Choose contact",
+            "label": "Label (optional)",
+            "labelPlaceholder": "e.g. Main wallet",
+            "addressCount": "{count} addresses saved"
+        }
+    },
+    "Send": {
+        "title": "Send",
+        "sendCrypto": "Send crypto",
+        "to": "To",
+        "chooseCrypto": "Choose crypto",
+        "howMuch": "How much do you want to send?",
+        "youAreSending": "You are sending",
+        "estimatedCost": "Estimated cost",
+        "calculating": "Calculating...",
+        "unableToEstimate": "Unable to estimate",
+        "conversionUnavailable": "Conversion unavailable",
+        "confirmAndPay": "Confirm and Pay",
+        "continue": "Continue"
+    }
+}
