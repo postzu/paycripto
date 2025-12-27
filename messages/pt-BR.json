@@ -92,6 +92,7 @@
         "title": "Enviar",
         "sendCrypto": "Enviar cripto",
         "to": "Para",
+        "changeRecipient": "Trocar destinatario",
         "chooseCrypto": "Escolha a cripto",
         "howMuch": "Quanto voce quer enviar?",
         "youAreSending": "Voce esta enviando",
@@ -100,6 +101,7 @@
         "unableToEstimate": "Nao foi possivel estimar",
         "conversionUnavailable": "Conversao indisponivel",
         "confirmAndPay": "Confirmar e Pagar",
-        "continue": "Continuar"
+        "continue": "Continuar",
+        "editAmount": "Editar valor"
     }
 }

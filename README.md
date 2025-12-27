@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PayCripto
 
-## Getting Started
+Envios cripto com a fluidez do PIX e identidade clara para quem paga e recebe. Este README foi pensado para um dev solo: direto ao ponto, com objetivo, MVP, o que falta e como rodar.
 
-First, run the development server:
+## Visão em 30s
+- Problema: pagar e receber cripto ainda é confuso (endereços longos, redes diferentes, medo de errar).
+- Público: quem já usa PIX e quer a mesma simplicidade para cripto; creators e freelancers que recebem em stablecoins; builders que precisam validar o fluxo de envio.
+- Proposta de valor: identidade PayCripto + fluxo estilo PIX, multilíngue (pt-BR/en-US), focado em testes em testnets.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## MVP (estado atual)
+- Landing e narrativa do produto em `app/page.tsx` (pt-BR) com call-to-action para `/pt-BR/cripto` e `/en-US/cripto`.
+- Conexão de carteira via RainbowKit/Wagmi com WalletConnect (testnets: Base Sepolia, Sepolia, Arbitrum/Optimism/zkSync/BSC/Loopring).
+- Saldo e conversão: lê saldo nativo da rede conectada e trata como “USDT de teste”, convertendo via CoinGecko para BRL/USD.
+- Catálogo de destinatários: lista mock carregada no client; UI pronta para múltiplos endereços por contato.
+- Wizard de envio com estimativa de taxa e conversão fiat (ETH/USDT/USDC). Hoje a confirmação é simulada (alert + log); não assina nem envia transação.
+- Recebimento: exibe QR e permite copiar endereço conectado; scanner de QR para preencher endereço de destino.
+
+## Próximos passos sugeridos (design thinking)
+1) Validar desejo/clareza: testes com usuários para comprovar que “nome PayCripto + estilo PIX” reduz ansiedade de envio.  
+2) Confiabilidade: persistir contatos reais no Supabase (tabela `recipients`) e permitir múltiplos endereços por contato.  
+3) Operação real: plugar assinatura e envio on-chain (viem/wagmi), escolhendo assets suportados por rede e validando taxas.  
+4) Identidade: reservar/validar nomes PayCripto (mapeamento nome → address) para evitar erros de digitação.  
+5) Pós-envio: recibo compartilhável e histórico por usuário.  
+6) Segurança UX: validações anti-erro (rede correta, checksums, limites, bloqueio se asset/chain não suportados).
+
+## Pilha e arquitetura rápida
+- Front: Next.js (App Router, TypeScript), Tailwind utility classes, Framer Motion, lucide-react.
+- i18n: `next-intl` com rotas `pt-BR` e `en-US`.
+- Web3: RainbowKit + Wagmi + viem com testnets pré-configuradas.
+- Dados: Supabase client pronto (`src/infrastructure/supabase/*`) para salvar/ler `recipients`; hoje a UI usa mock em memória.
+- Estado/async: React Query para requests web3 e dados.
+- Organização: domínio/uso de casos em `src/core`, UI em `src/presentation`, helpers em `src/lib`.
+
+## Estrutura útil
+- `app/page.tsx` — landing e narrativa do produto.
+- `app/[locale]/cripto/page.tsx` — produto principal (pt/en).
+- `src/presentation/components/cripto/*` — cards, wizard de envio, lista de contatos, scanner/QR.
+- `src/presentation/providers/web3-provider.tsx` — configuração de RainbowKit/Wagmi (testnets + WalletConnect).
+- `src/infrastructure/supabase` — client e repository para contatos.
+- `src/lib/currency.ts` — mapeamento de moedas, chains e conversão via CoinGecko.
+
+## Fluxo do usuário (atual)
+1) Cria/desbloqueia carteira Web3 (MetaMask/Rabby).  
+2) Conecta no botão RainbowKit.  
+3) Vê saldo (testnet) e conversão para BRL/USD.  
+4) Escolhe destinatário da lista ou adiciona (mock).  
+5) Preenche valor e asset; vê estimativa de taxa (simulada) e conversão fiat.  
+6) Confirma (simulação); volta para a home.  
+7) Pode copiar/compartilhar endereço ou QR para receber.
+
+## Limites atuais
+- Não há envio real on-chain (confirmação é simulada).
+- Lista de contatos não persiste sem integrar Supabase.
+- Os contratos USDT em testnet são tratados como mock; saldo vem da moeda nativa da rede conectada.
+
+## Ambiente
+Crie `.env.local` com:
 ```
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=seu-project-id
+NEXT_PUBLIC_SUPABASE_URL=https://...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+- WalletConnect é necessário para abrir o modal de conexão.
+- Supabase é opcional; sem ele, os contatos ficam apenas em memória.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Como rodar
+1) Node 18.17+ (recomendado 20).  
+2) Instale deps: `npm install`  
+3) Dev: `npm run dev` e abra `http://localhost:3000`  
+4) Build: `npm run build`  
+5) Prod local: `npm run start` (após build)  
+6) Lint: `npm run lint`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Rotas
+- `/` — landing (pt-BR).  
+- `/pt-BR/cripto` — app em português.  
+- `/en-US/cripto` — app em inglês.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Ideias rápidas de validação
+- Teste com 3–5 usuários gravando tela: mede tempo e erro ao enviar.  
+- Pergunte “onde você travou?” e “o que te deu confiança?” após o fluxo.  
+- Logue eventos de sucesso/abandono por etapa do wizard para priorizar ajustes.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { ArrowLeft, Coins, Wallet, AlertCircle } from 'lucide-react';
+import { Coins, Wallet, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { fetchAssetPrice, localeToCurrency } from '@/lib/currency';
@@ -154,16 +154,6 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
         setStep('amount');
     };
 
-    const handleBack = () => {
-        if (step === 'confirm') {
-            setStep('amount');
-            return;
-        }
-
-        // For the MVP we keep USDT as the default asset, so skip the asset selector
-        onBack();
-    };
-
     const handleAmountSubmit = () => {
         if (!amount || parseFloat(amount) <= 0) return;
         estimateFee();
@@ -179,22 +169,33 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
         });
     };
 
+    const handleEditAmount = () => {
+        setStep('amount');
+    };
+
+    const recipientMeta = `${recipient.label ? `${recipient.label} - ` : ''}${shortRecipientAddress}`;
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={handleBack}
-                    className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                >
-                    <ArrowLeft className="text-white" size={24} />
-                </button>
-                <div>
-                    <h2 className="text-xl font-semibold text-white">{t('sendCrypto')}</h2>
-                    <p className="text-sm text-white/50">{t('to')}: {recipient.name}</p>
-                    <p className="text-xs text-white/50">
-                        {recipient.label ? `${recipient.label} · ` : ''}{shortRecipientAddress}
-                    </p>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                        <h2 className="text-xl font-semibold text-white">{t('sendCrypto')}</h2>
+                        <p className="text-sm text-white/60">
+                            {t('to')}: <span className="text-white font-medium">{recipient.name}</span>
+                        </p>
+                        <p className="text-xs text-white/50">{recipientMeta}</p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-white/70 hover:text-white"
+                        onClick={onBack}
+                    >
+                        {t('changeRecipient')}
+                    </Button>
                 </div>
             </div>
 
@@ -298,6 +299,18 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
                             </div>
                             <p className="text-white/50">para <span className="text-white font-medium">{recipient.name}</span></p>
                         </Card>
+
+                        <div className="flex justify-end">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs text-white/70 hover:text-white"
+                                onClick={handleEditAmount}
+                            >
+                                {t('editAmount')}
+                            </Button>
+                        </div>
 
                         {/* Fee Badge */}
                         <Card className="flex items-center justify-between">
