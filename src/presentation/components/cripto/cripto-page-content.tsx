@@ -18,6 +18,7 @@ import {
     Info,
     LogOut,
     QrCode,
+    Share2,
     Send,
     ShieldCheck,
     Wallet,
@@ -158,6 +159,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [showOtherAssetsModal, setShowOtherAssetsModal] = useState(false);
     const [showConversionModal, setShowConversionModal] = useState(false);
     const [showConversionAlternatives, setShowConversionAlternatives] = useState(false);
+    const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
     const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Wallet connection
@@ -178,6 +180,15 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const defaultNetworkName = t('Home.network.defaultValue');
     const defaultNetworkMeta = t('Home.network.defaultMeta');
     const defaultBadge = t('Home.network.defaultBadge');
+    const currentNetworkName = useMemo(() => {
+        if (!chainId) return defaultNetworkName;
+        const current = switchableChains?.find((network) => network.id === chainId);
+        const currentName = current?.name;
+        if (currentName && currentName.toLowerCase().includes('base')) {
+            return defaultNetworkName;
+        }
+        return currentName || defaultNetworkName;
+    }, [chainId, defaultNetworkName, switchableChains]);
     const parsedBalance = Number.parseFloat(usdtBalance || '0');
     const hasBalance = Number.isFinite(parsedBalance) && parsedBalance > 0;
     const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdtBalance) : '*****';
@@ -186,6 +197,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const conversionNotice = t('Home.balance.conversionNotice');
     const conversionTooltip = t('Home.balance.tooltip');
     const balanceDescription = t('Home.balance.description');
+    const payCryptoId = shortAddress || t('Home.identity.placeholder');
     const preventionNotice = t('Home.network.compatibilityNotice');
     const supportedNetworksLabel = t('Home.network.seeSupported');
     const depositMicrocopy = t('Home.deposit.microcopy');
@@ -276,7 +288,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         if (tone === 'warning') return 'bg-amber-400';
         return 'bg-white/70';
     };
-    const nonCustodialMessage = t('Home.security.nonCustodial');
     const allowedNetworksLabel = useMemo(
         () => ALLOWED_CHAIN_LIST.map((chain) => chain.name).join(', '),
         []
@@ -332,18 +343,17 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         };
     }, [address, isReceiveOpen]);
 
-    const handleCopyAddress = async () => {
-        if (!address) return;
-
+    const copyToClipboard = async (value: string) => {
+        if (!value) return;
         try {
             if (navigator?.clipboard?.writeText) {
-                await navigator.clipboard.writeText(address);
+                await navigator.clipboard.writeText(value);
             } else {
                 throw new Error('Clipboard API not available');
             }
         } catch {
             const textarea = document.createElement('textarea');
-            textarea.value = address;
+            textarea.value = value;
             textarea.style.position = 'fixed';
             textarea.style.left = '-9999px';
             document.body.appendChild(textarea);
@@ -356,12 +366,28 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                 document.body.removeChild(textarea);
             }
         }
+    };
+
+    const handleCopyAddress = async () => {
+        if (!address) return;
+
+        await copyToClipboard(address);
 
         setHasCopiedAddress(true);
         if (copyFeedbackTimeout.current) {
             clearTimeout(copyFeedbackTimeout.current);
         }
         copyFeedbackTimeout.current = setTimeout(() => setHasCopiedAddress(false), 1500);
+    };
+
+    const handleShareCopyAddress = async () => {
+        await handleCopyAddress();
+        setIsShareMenuOpen(false);
+    };
+
+    const handleShareQr = () => {
+        setIsShareMenuOpen(false);
+        setIsReceiveOpen(true);
     };
 
     const handleSelectRecipient = (recipient: SelectedRecipient) => {
@@ -375,6 +401,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             setIsDepositOpen(false);
             setShowOtherAssetsModal(false);
             setShowConversionModal(false);
+            setIsShareMenuOpen(false);
         }
     }, [isConnected]);
 
@@ -384,6 +411,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             setIsDepositOpen(false);
             setShowOtherAssetsModal(false);
             setShowConversionModal(false);
+            setIsShareMenuOpen(false);
         }
     }, [networkBlocked]);
 
@@ -825,65 +853,89 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
                             {/* Connected Wallet */}
                             {isConnected && (
-                                <Card className="p-4 bg-white/[0.04] border border-white/5">
+                                <Card className="p-5 bg-white/[0.04] border border-white/5 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3">
-                                            <span className="h-2.5 w-2.5 rounded-full bg-success shadow-[0_0_0_6px_rgba(34,197,94,0.15)]" />
-                                            <div className="flex flex-col items-start">
-                                                <span className="font-medium text-sm text-white">{t('Home.walletConnected')}</span>
-                                                <span className="text-xs text-white/60">{shortAddress}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-white/70">
-                                            <span className="text-white/60">{t('Home.network.defaultLabel')}:</span>
-                                            <span className="text-sm font-semibold text-white">{defaultNetworkName}</span>
-                                        </div>
-                                    </div>
-                                    <p className="mt-2 flex items-center gap-2 text-xs text-white/70">
-                                        <ShieldCheck size={14} className="text-success" />
-                                        <span>{nonCustodialMessage}</span>
-                                    </p>
-                                    <div className="mt-3 flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs text-white/70">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-amber-200">
-                                            <AlertTriangle size={16} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="leading-relaxed">{preventionNotice}</p>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-[11px] font-semibold text-white/80 hover:text-white"
-                                                    onClick={() => setShowWhyBase(true)}
-                                                >
-                                                    {supportedNetworksLabel}
-                                                </Button>
-                                            </div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">
+                                            {t('Home.identity.title')}
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-white/80">
+                                                <BaseIcon size="sm" />
+                                                <span>{defaultNetworkName}</span>
+                                            </span>
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">
+                                                <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_0_6px_rgba(34,197,94,0.15)]" />
+                                                <span>{t('Home.walletConnected')}</span>
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="mt-3 flex items-center justify-end gap-2">
+
+                                    <div className="rounded-2xl border border-white/5 bg-black/40 p-4 shadow-inner">
+                                        <p className="font-mono text-base text-white">{payCryptoId}</p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Button
                                             type="button"
-                                            variant="ghost"
+                                            variant="secondary"
                                             size="sm"
-                                            className="text-xs"
+                                            className="text-xs font-semibold"
                                             onClick={handleCopyAddress}
                                         >
                                             <Copy size={16} className="mr-1" />
-                                            {hasCopiedAddress ? t('Home.receive.copied') : t('Home.receive.copy')}
+                                            {hasCopiedAddress ? t('Home.receive.copied') : t('Home.identity.copy')}
                                         </Button>
+                                        <div className="relative">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-xs font-semibold"
+                                                onClick={() => setIsShareMenuOpen((prev) => !prev)}
+                                            >
+                                                <Share2 size={16} className="mr-1" />
+                                                {t('Home.identity.share')}
+                                            </Button>
+                                            <AnimatePresence>
+                                                {isShareMenuOpen && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 6 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 6 }}
+                                                        className="absolute left-0 z-10 mt-2 w-52 rounded-xl border border-white/10 bg-dark-surface/95 p-2 shadow-xl backdrop-blur"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/5"
+                                                            onClick={handleShareQr}
+                                                        >
+                                                            <QrCode size={16} />
+                                                            <span>{t('Home.identity.shareOptions.qrCode')}</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/5"
+                                                            onClick={handleShareCopyAddress}
+                                                        >
+                                                            <Copy size={16} />
+                                                            <span>{t('Home.identity.shareOptions.copyAddress')}</span>
+                                                        </button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            className="text-xs text-white/60 bg-white/5 hover:text-white hover:bg-white/10"
+                                            className="ml-auto text-xs text-white/60 bg-white/5 hover:text-white hover:bg-white/10"
                                             onClick={() => disconnect()}
                                         >
                                             <LogOut size={16} className="mr-1" />
                                             {t('Home.disconnect')}
                                         </Button>
                                     </div>
+
                                 </Card>
                             )}
                         </motion.div>

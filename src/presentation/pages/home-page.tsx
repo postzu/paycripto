@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -38,11 +38,14 @@ type PixCopy = {
   localBadge: string;
   otherBadge: string;
   detectedLabel: string;
+  globalPhrase: string;
+  secondaryHint: string;
 };
 
 type RegionalEquivalent = {
   code: RegionCode;
   region: string;
+  lead?: string;
   items: string[];
   summary: string;
 };
@@ -58,13 +61,15 @@ const PIX_COPY: Record<LocaleKey, PixCopy> = {
       "Sem custodia. Suas chaves, seus fundos. Conecte a carteira, confirme e mova valor como no PIX.",
     instantTitle: "Envios instantaneos",
     languageDescription: "Interface trilingue para quem paga em portugues, ingles ou espanhol.",
-    regionHeading: "Como explicamos PIX no seu pais",
-    regionSubtitle: "Detectamos sua regiao e mostramos o equivalente local. Compare outros se quiser.",
-    viewAllLabel: "Ver outros paises",
-    hideAllLabel: "Fechar outros paises",
-    localBadge: "Como funciona onde voce mora",
-    otherBadge: "Outro pais",
-    detectedLabel: "Mostrando o equivalente da sua regiao",
+    regionHeading: "Receba dinheiro do mundo todo como se fosse um PIX",
+    regionSubtitle: "Um unico endereco cripto. Sem banco. Sem fronteiras. No seu controle.",
+    viewAllLabel: "Ver equivalentes globais",
+    hideAllLabel: "Ocultar equivalentes",
+    localBadge: "Brasil em destaque",
+    otherBadge: "Equivalentes globais (opcional)",
+    detectedLabel: "Mesmo conceito do PIX, agora em cripto",
+    globalPhrase: "Nao importa o pais de quem paga. Voce recebe direto na sua carteira.",
+    secondaryHint: "Opcional, so para contexto.",
   },
   "en-US": {
     heroTitle: "Send, receive, and centralize your income in crypto - as easy as your instant rail.",
@@ -76,14 +81,15 @@ const PIX_COPY: Record<LocaleKey, PixCopy> = {
       "No custody. Your keys, your funds. Connect and move value with the instant flow you already know (Zelle, SEPA Instant, UPI...).",
     instantTitle: "Instant transfers",
     languageDescription: "Trilingual interface for payers in Portuguese, English, or Spanish.",
-    regionHeading: "Your local instant rail explained",
-    regionSubtitle:
-      "We detect your region and show the closest equivalent (Zelle, SEPA Instant, UPI...). Open the others if you want to compare.",
-    viewAllLabel: "See other countries",
-    hideAllLabel: "Hide other countries",
-    localBadge: "How it works where you live",
-    otherBadge: "Other country",
-    detectedLabel: "Showing the closest rail for you",
+    regionHeading: "Get paid from anywhere as if it were PIX",
+    regionSubtitle: "One crypto address. No bank. Borderless. You stay in control.",
+    viewAllLabel: "See global equivalents",
+    hideAllLabel: "Hide equivalents",
+    localBadge: "Brazil highlighted",
+    otherBadge: "Global equivalents (optional)",
+    detectedLabel: "PIX-style, global and crypto",
+    globalPhrase: "No matter who pays, it lands straight in your wallet.",
+    secondaryHint: "Optional, just context.",
   },
   "es-ES": {
     heroTitle: "Envia, recibe y concentra tus ingresos en cripto - como tu pago instantaneo.",
@@ -95,14 +101,15 @@ const PIX_COPY: Record<LocaleKey, PixCopy> = {
       "Sin custodia. Tus llaves, tus fondos. Conecta la billetera y mueve valor con el flujo instantaneo que ya conoces (Zelle, SEPA Instant, UPI...).",
     instantTitle: "Envios instantaneos",
     languageDescription: "Interfaz trilingue para quien paga en portugues, ingles o espanol.",
-    regionHeading: "Tu rail instantaneo local explicado",
-    regionSubtitle:
-      "Detectamos tu region y mostramos el equivalente mas cercano (Zelle, SEPA Instant, UPI...). Abre los demas si quieres comparar.",
-    viewAllLabel: "Ver otros paises",
-    hideAllLabel: "Cerrar otros paises",
-    localBadge: "Como funciona donde vives",
-    otherBadge: "Otro pais",
-    detectedLabel: "Mostrando el rail mas cercano para ti",
+    regionHeading: "Recibe dinero de todo el mundo como si fuera un PIX",
+    regionSubtitle: "Una sola direccion cripto. Sin banco. Sin fronteras. En tu control.",
+    viewAllLabel: "Ver equivalentes globales",
+    hideAllLabel: "Ocultar equivalentes",
+    localBadge: "Brasil en destaque",
+    otherBadge: "Equivalentes globales (opcional)",
+    detectedLabel: "Mismo concepto del PIX, ahora en cripto",
+    globalPhrase: "No importa el pais de quien paga. Recibes directo en tu billetera.",
+    secondaryHint: "Opcional, solo contexto.",
   },
 };
 
@@ -111,115 +118,132 @@ const REGIONAL_EQUIVALENTS: Record<LocaleKey, RegionalEquivalent[]> = {
     {
       code: "br",
       region: "Brasil",
-      items: ["PIX", "Transferencia instantanea banco a banco", "Disponivel 24/7 nos apps dos bancos"],
-      summary:
-        "Voce ja usa PIX: transferencia instantanea entre contas bancarias, todos os dias. Fora do Brasil, mostramos o equivalente local.",
+      lead: "No Brasil, e como um PIX",
+      items: ["Transferencia instantanea", "Disponivel 24/7", "Modelo que voce ja conhece"],
+      summary: "Se voce ja usa PIX, ja sabe usar PayCripto para receber salario e pagamentos recorrentes.",
     },
     {
       code: "us",
       region: "Estados Unidos",
-      items: ["Zelle", "Venmo (modelo mental mais proximo)", "Cash App"],
-      summary: "PIX e como o Zelle: transferencia instantanea entre bancos, 24/7. (Veja outros equivalentes no mundo).",
+      lead: "Zelle / Venmo / Cash App",
+      items: ["Modelo mental parecido: enviar -> confirmar -> pronto"],
+      summary: "Instantaneo entre contas, direto no app.",
     },
     {
       code: "eu",
       region: "Europa",
-      items: ["SEPA Instant"],
-      summary: "PIX e como SEPA Instant: cai na hora, qualquer dia.",
+      lead: "SEPA Instant",
+      items: ["Transferencias bancarias instantaneas"],
+      summary: "Cai na hora, qualquer dia.",
     },
     {
       code: "gb",
       region: "Reino Unido",
-      items: ["Faster Payments"],
-      summary: "No Reino Unido, PIX equivale ao Faster Payments.",
+      lead: "Faster Payments",
+      items: ["Transferencias bancarias rapidas"],
+      summary: "Instantaneo entre bancos britanicos.",
     },
     {
       code: "in",
       region: "India",
-      items: ["UPI (Google Pay / PhonePe)"],
-      summary: "Na India, PIX funciona como o UPI.",
+      lead: "UPI (Google Pay / PhonePe)",
+      items: ["Transferencia instantanea entre bancos"],
+      summary: "Fluxo de enviar -> confirmar -> pago.",
     },
     {
       code: "sg",
-      region: "Sudeste Asiatico / Singapura",
-      items: ["PayNow"],
-      summary: "Em Singapura, o paralelo e PayNow.",
+      region: "Singapura",
+      lead: "PayNow",
+      items: ["Pagamentos instantaneos"],
+      summary: "Modelo rapido para contas locais.",
     },
   ],
   "en-US": [
     {
+      code: "br",
+      region: "Brazil",
+      lead: "In Brazil, it's just like PIX",
+      items: ["Instant bank transfers", "Available 24/7", "Tap -> confirm -> done"],
+      summary: "If you know PIX, you already know PayCripto for salary and recurring payouts.",
+    },
+    {
       code: "us",
       region: "United States",
-      items: ["Zelle", "Venmo (closest mental model)", "Cash App"],
-      summary: "Closest match: Zelle - instant bank-to-bank transfers, 24/7. (PIX is the Brazilian version.)",
+      lead: "Zelle / Venmo / Cash App",
+      items: ["Similar mental model: send -> confirm -> done"],
+      summary: "Instant bank-to-bank, 24/7 in the app.",
     },
     {
       code: "eu",
       region: "Europe",
-      items: ["SEPA Instant"],
-      summary: "Closest match: SEPA Instant - hits the account immediately, any day. (In Brazil this is PIX.)",
+      lead: "SEPA Instant",
+      items: ["Instant bank transfers"],
+      summary: "Hits the account immediately, any day.",
     },
     {
       code: "gb",
       region: "United Kingdom",
-      items: ["Faster Payments"],
-      summary: "Closest match: Faster Payments - the UK's instant bank rail. (Brazil uses PIX.)",
+      lead: "Faster Payments",
+      items: ["Instant bank rail"],
+      summary: "Fast between UK banks.",
     },
     {
       code: "in",
       region: "India",
-      items: ["UPI (Google Pay / PhonePe)"],
-      summary: "Closest match: UPI (Google Pay / PhonePe) - real-time transfers, 24/7. (PIX is Brazil's version.)",
+      lead: "UPI (Google Pay / PhonePe)",
+      items: ["Instant bank-to-bank transfer"],
+      summary: "Send -> confirm -> paid.",
     },
     {
       code: "sg",
-      region: "Southeast Asia / Singapore",
-      items: ["PayNow"],
-      summary: "Closest match: PayNow - Singapore's instant rail. (PIX is the Brazilian equivalent.)",
-    },
-    {
-      code: "br",
-      region: "Brazil",
-      items: ["PIX"],
-      summary: "In Brazil, you already have PIX. We mirror that experience for people abroad.",
+      region: "Singapore",
+      lead: "PayNow",
+      items: ["Instant payments"],
+      summary: "Quick flow for local accounts.",
     },
   ],
   "es-ES": [
     {
+      code: "br",
+      region: "Brasil",
+      lead: "En Brasil, es como un PIX",
+      items: ["Transferencia instantanea", "Disponible 24/7", "Modelo que ya conoces"],
+      summary: "Si ya usas PIX, ya sabes usar PayCripto para salario y pagos recurrentes.",
+    },
+    {
       code: "us",
       region: "Estados Unidos",
-      items: ["Zelle", "Venmo (modelo mental cercano)", "Cash App"],
-      summary: "PIX funciona como Zelle: transferencia banco a banco al instante, 24/7. (Ve otros equivalentes en el mundo).",
+      lead: "Zelle / Venmo / Cash App",
+      items: ["Modelo mental parecido: enviar -> confirmar -> listo"],
+      summary: "Instantaneo entre cuentas, directo en la app.",
     },
     {
       code: "eu",
       region: "Europa",
-      items: ["SEPA Instant"],
-      summary: "PIX es como SEPA Instant: llega al momento, cualquier dia.",
+      lead: "SEPA Instant",
+      items: ["Transferencias bancarias instantaneas"],
+      summary: "Llega al momento, cualquier dia.",
     },
     {
       code: "gb",
       region: "Reino Unido",
-      items: ["Faster Payments"],
-      summary: "En el Reino Unido, PIX se parece a Faster Payments.",
+      lead: "Faster Payments",
+      items: ["Transferencias rapidas entre bancos"],
+      summary: "Instantaneo en bancos del Reino Unido.",
     },
     {
       code: "in",
       region: "India",
-      items: ["UPI (Google Pay / PhonePe)"],
-      summary: "En India, PIX equivale a UPI.",
+      lead: "UPI (Google Pay / PhonePe)",
+      items: ["Transferencia instantanea entre bancos"],
+      summary: "Flujo de enviar -> confirmar -> pagado.",
     },
     {
       code: "sg",
-      region: "Sudeste Asiatico / Singapur",
-      items: ["PayNow"],
-      summary: "En Singapur, el paralelo es PayNow.",
-    },
-    {
-      code: "br",
-      region: "Brasil",
-      items: ["PIX"],
-      summary: "En Brasil ya usas PIX. Replicamos esa experiencia para otros paises.",
+      region: "Singapur",
+      lead: "PayNow",
+      items: ["Pagos instantaneos"],
+      summary: "Flujo rapido para cuentas locales.",
     },
   ],
 };
@@ -264,7 +288,11 @@ type LandingCopy = {
   flowLegend: string;
   guideSubtitle: string;
   trustTitle: string;
+  trustSubtitle: string;
+  trustBadge: string;
+  trustManifestoTitle: string;
   trustReasons: string[];
+  salaryConnection: string;
   faqTitle: string;
   tutorialsLabel: string;
   guideTitle: string;
@@ -390,21 +418,30 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     exampleLabel: "Exemplo real de envio",
     flowLegend: "Fluxo simples para enviar e receber: digita o nome -> insere valor -> confirma.",
     guideSubtitle: "Comece agora, mesmo sem saber nada de cripto.",
-    trustTitle: "Por que confiar?",
-    trustReasons: ["Auditoria", "Codigo aberto (se for)", "Roadmap simples"],
+    trustTitle: "Voce no controle. Sempre.",
+    trustSubtitle: "Sem custodia. Sem banco. Sem intermediarios.",
+    trustBadge: "Seu dinheiro. Suas chaves. Suas regras.",
+    trustManifestoTitle: "Manifesto de confianca",
+    trustReasons: [
+      "Voce controla suas chaves: o PayCripto nunca acessa seus fundos. Voce aprova tudo direto na sua carteira.",
+      "Nao somos banco: nao bloqueamos saldo, nao congelamos contas, nao pedimos permissao.",
+      "Infraestrutura verificavel: Base, contratos publicos e integracoes verificaveis.",
+    ],
+    salaryConnection: "Ideal para receber salario, freelas e pagamentos recorrentes - sem depender de bancos.",
     faqTitle: "Perguntas rapidas",
     faqItems: [
       {
         question: "Posso receber salario no PayCripto?",
-        answer: "Sim. Qualquer pessoa ou empresa pode enviar pagamentos direto para sua carteira Base.",
+        answer:
+          "Sim. Empresas ou pessoas podem enviar pagamentos recorrentes direto para sua carteira Base - como um PIX mensal, so que em cripto.",
       },
       {
         question: "Preciso de banco para usar?",
-        answer: "Nao. O PayCripto funciona direto com carteira cripto. Voce decide se e quando converter.",
+        answer: "Nao. O PayCripto funciona direto com carteira cripto. Voce decide se, quando e onde converter para moeda local.",
       },
       {
         question: "Posso perder meus fundos?",
-        answer: "Nao guardamos fundos. Voce conecta a carteira e confirma as operacoes com suas chaves.",
+        answer: "Nao guardamos seus fundos. Voce conecta sua carteira e aprova cada operacao. Seus ativos ficam sempre sob seu controle.",
       },
     ],
     tutorialsLabel: "Tutoriais rapidos",
@@ -439,7 +476,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
         { title: "Envie e receba", description: "Use nome PayCripto ou endereco com fluxo estilo PIX.", icon: ArrowLeftRight },
       ],
     },
-    regionLabel: "PIX pelo mundo",
+    regionLabel: "Equivalentes ao PIX em outros paises (opcional)",
     regionDetectedLabel: "Pais detectado automaticamente: {region}",
     tutorialBadge: "Tutorial",
     securityLabel: "Seguranca",
@@ -468,21 +505,30 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     exampleLabel: "Real send example",
     flowLegend: "Simple flow to send and get paid: type the name -> enter amount -> confirm.",
     guideSubtitle: "Start now, even if you're new to crypto.",
-    trustTitle: "Why trust PayCripto?",
-    trustReasons: ["Audit", "Open source (if applicable)", "Simple roadmap"],
+    trustTitle: "You stay in control. Always.",
+    trustSubtitle: "No custody. No banks. No intermediaries.",
+    trustBadge: "Your money. Your keys. Your rules.",
+    trustManifestoTitle: "Trust manifesto",
+    trustReasons: [
+      "You hold your keys: PayCripto never touches your funds. You approve every action in your wallet.",
+      "We are not a bank: no balance holds, no frozen accounts, no permission needed.",
+      "Open, verifiable stack: Base, public contracts, and verifiable integrations.",
+    ],
+    salaryConnection: "Built for salary, freelance, and recurring payouts - without relying on banks.",
     faqTitle: "Quick questions",
     faqItems: [
       {
         question: "Can I get my salary in PayCripto?",
-        answer: "Yes. Any person or company can pay you directly to your Base wallet in crypto.",
+        answer:
+          "Yes. Companies or individuals can send recurring payments straight to your Base wallet - like a monthly salary in crypto.",
       },
       {
         question: "Do I need a bank to use it?",
-        answer: "No. PayCripto works directly with your crypto wallet. You decide if and when to convert.",
+        answer: "No. PayCripto works directly with your crypto wallet. You decide if, when, and where to convert to local currency.",
       },
       {
         question: "Can I lose my funds?",
-        answer: "We never hold funds. You connect your wallet and confirm with your own keys.",
+        answer: "We do not custody your funds. You connect your wallet and approve each operation. Your assets stay under your control.",
       },
     ],
     tutorialsLabel: "Quick tutorials",
@@ -517,7 +563,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
         { title: "Send and receive", description: "Use a PayCripto name or address with a PIX-style flow.", icon: ArrowLeftRight },
       ],
     },
-    regionLabel: "PIX worldwide",
+    regionLabel: "PIX equivalents worldwide (optional)",
     regionDetectedLabel: "Detected automatically: {region}",
     tutorialBadge: "Tutorial",
     securityLabel: "Security",
@@ -546,21 +592,30 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     exampleLabel: "Ejemplo real de envio",
     flowLegend: "Flujo simple para enviar y cobrar: escribe el nombre -> pon el monto -> confirma.",
     guideSubtitle: "Empieza ahora, incluso si eres nuevo en cripto.",
-    trustTitle: "Por que confiar?",
-    trustReasons: ["Auditoria", "Codigo abierto (si aplica)", "Roadmap simple"],
+    trustTitle: "Tu en control. Siempre.",
+    trustSubtitle: "Sin custodia. Sin banco. Sin intermediarios.",
+    trustBadge: "Tu dinero. Tus llaves. Tus reglas.",
+    trustManifestoTitle: "Manifiesto de confianza",
+    trustReasons: [
+      "Tu controlas tus llaves: PayCripto nunca toca tus fondos. Apruebas todo directo en tu billetera.",
+      "No somos banco: no bloqueamos saldo, no congelamos cuentas, no pedimos permiso.",
+      "Infraestructura verificable: Base, contratos publicos e integraciones verificables.",
+    ],
+    salaryConnection: "Ideal para recibir salario, freelas y pagos recurrentes - sin depender de bancos.",
     faqTitle: "Preguntas rapidas",
     faqItems: [
       {
         question: "Puedo recibir salario en PayCripto?",
-        answer: "Si. Cualquier persona o empresa puede enviarte pagos directo a tu billetera Base en cripto.",
+        answer:
+          "Si. Empresas o personas pueden enviar pagos recurrentes directo a tu billetera Base - como un salario mensual en cripto.",
       },
       {
         question: "Necesito banco para usar?",
-        answer: "No. PayCripto funciona directo con tu billetera cripto. Tu decides si y cuando convertir.",
+        answer: "No. PayCripto funciona directo con tu billetera cripto. Tu decides si, cuando y donde convertir a moneda local.",
       },
       {
         question: "Puedo perder mis fondos?",
-        answer: "No custodiamos fondos. Conectas tu billetera y confirmas con tus llaves.",
+        answer: "No custodiamos tus fondos. Conectas tu billetera y apruebas cada operacion. Tus activos quedan bajo tu control.",
       },
     ],
     tutorialsLabel: "Tutoriales rapidos",
@@ -595,7 +650,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
         { title: "Envia y recibe", description: "Usa nombre PayCripto o direccion con flujo estilo PIX.", icon: ArrowLeftRight },
       ],
     },
-    regionLabel: "PIX por el mundo",
+    regionLabel: "Equivalentes al PIX en otros paises (opcional)",
     regionDetectedLabel: "Pais detectado automaticamente: {region}",
     tutorialBadge: "Tutorial",
     securityLabel: "Seguridad",
@@ -618,34 +673,6 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
   },
 };
 
-function detectRegionFromNavigator(selectedLocale: LocaleKey): RegionCode | null {
-  if (typeof window === "undefined") return null;
-  const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
-
-  for (const raw of locales) {
-    const locale = raw?.toLowerCase();
-    if (!locale) continue;
-
-    // Honor the language the user selected: if they chose English, don't force Brazil/PIX.
-    if (locale.startsWith("pt-br")) return selectedLocale === "pt-BR" ? "br" : null;
-    if (locale.startsWith("en-us")) return "us";
-    if (locale.startsWith("en-gb") || locale.startsWith("en-uk")) return "gb";
-    if (locale.startsWith("hi") || locale.startsWith("en-in")) return "in";
-    if (locale.startsWith("en-sg") || locale.startsWith("ms") || locale.startsWith("id")) return "sg";
-    if (
-      locale.startsWith("de") ||
-      locale.startsWith("fr") ||
-      locale.startsWith("es") ||
-      locale.startsWith("it") ||
-      locale.startsWith("pt-pt") ||
-      locale.startsWith("nl")
-    )
-      return "eu";
-  }
-
-  return null;
-}
-
 export default function Home() {
   const params = useParams<{ locale?: string }>();
   const localeParam = params?.locale;
@@ -660,22 +687,11 @@ export default function Home() {
   const incomeSection = landingCopy.incomeSection;
   const steps = landingCopy.stepsSection.steps;
   const openAppCta = locale === "en-US" ? "Open PayCripto" : "Abrir PayCripto";
-  const defaultRegion: RegionCode = locale === "pt-BR" ? "br" : locale === "en-US" ? "us" : "eu";
-  const [preferredRegion, setPreferredRegion] = useState<RegionCode>(defaultRegion);
-  const [showAllRegions, setShowAllRegions] = useState(false);
-
-  useEffect(() => {
-    const detected = detectRegionFromNavigator(locale);
-    if (detected) {
-      setPreferredRegion(detected);
-    } else {
-      setPreferredRegion(defaultRegion);
-    }
-  }, [defaultRegion, locale]);
+  const [showGlobalExamples, setShowGlobalExamples] = useState(false);
 
   const primaryEquivalent = useMemo(
-    () => equivalents.find((equivalent) => equivalent.code === preferredRegion) ?? equivalents[0],
-    [equivalents, preferredRegion]
+    () => equivalents.find((equivalent) => equivalent.code === "br") ?? equivalents[0],
+    [equivalents]
   );
 
   const otherEquivalents = useMemo(
@@ -683,17 +699,17 @@ export default function Home() {
     [equivalents, primaryEquivalent?.code]
   );
 
-  const visibleEquivalents = useMemo(() => {
-    if (!primaryEquivalent) return [];
-    return showAllRegions ? [primaryEquivalent, ...otherEquivalents] : [primaryEquivalent];
-  }, [primaryEquivalent, otherEquivalents, showAllRegions]);
+  const visibleGlobalEquivalents = useMemo(
+    () => (showGlobalExamples ? otherEquivalents : []),
+    [otherEquivalents, showGlobalExamples]
+  );
 
   const hasMoreRegions = otherEquivalents.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] via-[#0d1530] to-black text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-14 px-6 py-14 md:gap-16">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
             <Image
               src="/logo-landing.png"
@@ -705,11 +721,11 @@ export default function Home() {
             />
             <p className="hidden text-sm text-white/80 sm:block">{pixCopy.badge}</p>
           </div>
-          <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-            <LocaleSwitchNotice className="w-full sm:w-auto" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <LocaleSwitchNotice className="hidden sm:block" />
             <Link
               href={appPath}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:-translate-y-0.5 hover:bg-white/90"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:-translate-y-0.5 hover:bg-white/90"
             >
               {openAppCta}
               <ArrowRight size={16} />
@@ -762,11 +778,7 @@ export default function Home() {
                 <ArrowRight size={16} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 gap-3 text-sm text-white/70 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.12em] text-white/50">{landingCopy.stats.brand}</p>
-                <p className="mt-2 text-lg font-semibold text-white">PayCripto</p>
-              </div>
+            <div className="grid grid-cols-1 gap-3 text-sm text-white/70 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.12em] text-white/50">{landingCopy.stats.experience}</p>
                 <p className="mt-2 text-lg font-semibold text-white">{pixCopy.uxLabel}</p>
@@ -832,6 +844,10 @@ export default function Home() {
             </div>
           </div>
         </main>
+
+        <div className="sm:hidden">
+          <LocaleSwitchNotice className="w-full" />
+        </div>
 
         <section
           id="como-funciona"
@@ -913,73 +929,100 @@ export default function Home() {
         </section>
 
         <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-primary/10">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-white/80">
-                  <Globe2 size={14} />
-                  <span>{landingCopy.regionDetectedLabel.replace("{region}", primaryEquivalent?.region ?? "")}</span>
-                </span>
-                <span className="rounded-full bg-primary/15 px-3 py-1 text-[11px] font-semibold text-primary">
-                  {pixCopy.detectedLabel}
-                </span>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
+                <Globe2 size={14} />
+                <span>{landingCopy.regionLabel}</span>
               </div>
-              <p className="text-xs uppercase tracking-[0.14em] text-white/60">
-                {landingCopy.regionLabel}
-              </p>
-              <h3 className="text-xl font-semibold text-white">{pixCopy.regionHeading}</h3>
+              <h3 className="text-2xl font-semibold text-white">{pixCopy.regionHeading}</h3>
               <p className="text-sm text-white/70">{pixCopy.regionSubtitle}</p>
             </div>
             {hasMoreRegions && (
               <button
                 type="button"
-                onClick={() => setShowAllRegions((prev) => !prev)}
+                onClick={() => setShowGlobalExamples((prev) => !prev)}
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/30"
               >
-                {showAllRegions ? pixCopy.hideAllLabel : pixCopy.viewAllLabel}
-                <ArrowRight size={16} className={showAllRegions ? "rotate-45 transition" : "transition"} />
+                {showGlobalExamples ? pixCopy.hideAllLabel : pixCopy.viewAllLabel}
+                <ArrowRight size={16} className={showGlobalExamples ? "rotate-45 transition" : "transition"} />
               </button>
             )}
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {visibleEquivalents.map((equivalent) => {
-              const isPrimary = equivalent.code === primaryEquivalent?.code;
-              return (
-                <div
-                  key={equivalent.region}
-                  className={`flex flex-col gap-3 rounded-2xl border p-4 transition hover:-translate-y-1 ${
-                    isPrimary
-                      ? "border-white/20 bg-white/10 shadow-lg shadow-primary/15"
-                      : "border-white/10 bg-black/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase tracking-[0.14em] text-white/50">{equivalent.code}</span>
-                      <p className="text-sm font-semibold text-white">{equivalent.region}</p>
-                    </div>
-                    <div
-                      className={`rounded-full px-3 py-1 text-[11px] ${
-                        isPrimary ? "bg-primary/25 text-white" : "bg-white/10 text-white/70"
-                      }`}
-                    >
-                      {isPrimary ? pixCopy.localBadge : pixCopy.otherBadge}
-                    </div>
+
+          <div className={`grid gap-4 ${showGlobalExamples ? "lg:grid-cols-[1.1fr_1fr]" : ""}`}>
+            {primaryEquivalent && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/15 p-4 shadow-lg shadow-primary/15">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase tracking-[0.14em] text-white/50">{primaryEquivalent.code}</span>
+                    <p className="text-sm font-semibold text-white">{primaryEquivalent.region}</p>
                   </div>
-                  <div className="space-y-2 text-sm text-white/75">
-                    {equivalent.items.map((item) => (
-                      <div key={item} className="flex items-start gap-2">
-                        <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full bg-primary/70" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-                    {equivalent.summary}
-                  </div>
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+                    {pixCopy.localBadge}
+                  </span>
                 </div>
-              );
-            })}
+                {primaryEquivalent.lead && (
+                  <p className="text-lg font-semibold text-white">{primaryEquivalent.lead}</p>
+                )}
+                <div className="space-y-2 text-sm text-white/75">
+                  {primaryEquivalent.items.map((item) => (
+                    <div key={item} className="flex items-start gap-2">
+                      <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full bg-white/70" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+                  {primaryEquivalent.summary}
+                </div>
+              </div>
+            )}
+
+            {showGlobalExamples && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/60">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-primary/60" />
+                  <span>{pixCopy.otherBadge}</span>
+                  <span className="text-white/50">({pixCopy.secondaryHint})</span>
+                </div>
+                <div className="grid gap-3">
+                  {visibleGlobalEquivalents.map((equivalent) => (
+                    <div
+                      key={equivalent.region}
+                      className="flex flex-col gap-2 rounded-2xl border border-white/5 bg-white/5 p-3 text-sm text-white/80 transition hover:-translate-y-1 hover:border-white/15"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-[0.14em] text-white/50">{equivalent.code}</span>
+                          <p className="text-sm font-semibold text-white">{equivalent.region}</p>
+                        </div>
+                        <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/70">
+                          {pixCopy.otherBadge}
+                        </span>
+                      </div>
+                      {equivalent.lead && (
+                        <p className="text-sm font-semibold text-white/80">{equivalent.lead}</p>
+                      )}
+                      <div className="space-y-1 text-[13px] text-white/70">
+                        {equivalent.items.map((item) => (
+                          <div key={item} className="flex items-start gap-2">
+                            <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full bg-white/30" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[13px] text-white/60">{equivalent.summary}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
+            <span className="inline-flex h-2 w-2 rounded-full bg-primary/70" />
+            <span>{pixCopy.globalPhrase}</span>
           </div>
         </section>
 
@@ -1038,17 +1081,17 @@ export default function Home() {
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.14em] text-white/60">{landingCopy.securityLabel}</p>
               <h3 className="text-xl font-semibold text-white">{landingCopy.trustTitle}</h3>
-              <p className="text-sm text-white/70">{landingCopy.heroSupport}</p>
+              <p className="text-sm text-white/70">{landingCopy.trustSubtitle}</p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-2 text-sm font-semibold text-primary">
               <ShieldCheck size={16} />
-              <span>{landingCopy.heroSupport}</span>
+              <span>{landingCopy.trustBadge}</span>
             </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <h4 className="text-lg font-semibold text-white">{landingCopy.trustTitle}</h4>
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/60">{landingCopy.trustManifestoTitle}</p>
               <ul className="space-y-2 text-sm text-white/75">
                 {landingCopy.trustReasons.map((reason) => (
                   <li key={reason} className="flex items-center gap-2">
@@ -1080,6 +1123,8 @@ export default function Home() {
               </ul>
             </div>
           </div>
+
+          <p className="text-sm text-white/70">{landingCopy.salaryConnection}</p>
 
           <div className="flex flex-wrap gap-3 pt-1">
             <Link
@@ -1119,3 +1164,4 @@ export default function Home() {
     </div>
   );
 }
+

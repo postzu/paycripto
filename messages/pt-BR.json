@@ -51,6 +51,24 @@
             "copy": "Copiar",
             "copied": "Copiado!"
         },
+        "identity": {
+            "title": "Endereco para receber pagamentos",
+            "subtitle": "Sua carteira e seu identificador. Voce recebe direto nela.",
+            "helper": "Receba usando endereco da carteira.",
+            "placeholder": "0x0000...0000",
+            "copy": "Copiar",
+            "share": "Compartilhar",
+            "shareOptions": {
+                "copyLink": "Copiar link",
+                "qrCode": "QR Code",
+                "copyAddress": "Copiar endereco"
+            },
+            "manage": "Gerenciar PayCrypto ID",
+            "manageHelper": "Criar, editar ou trocar seu nome PayCrypto.",
+            "networkTitle": "Rede atual",
+            "networkReminder": "Depositos devem ser feitos nesta rede.",
+            "viewSupported": "Ver redes suportadas"
+        },
         "network": {
             "defaultLabel": "Rede atual",
             "defaultValue": "Base",

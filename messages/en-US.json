@@ -51,6 +51,24 @@
             "copy": "Copy",
             "copied": "Copied!"
         },
+        "identity": {
+            "title": "Address to receive payments",
+            "subtitle": "Your wallet is your identifier. You get paid directly to it.",
+            "helper": "Get paid using your wallet address.",
+            "placeholder": "0x0000...0000",
+            "copy": "Copy",
+            "share": "Share",
+            "shareOptions": {
+                "copyLink": "Copy link",
+                "qrCode": "QR Code",
+                "copyAddress": "Copy address"
+            },
+            "manage": "Manage PayCrypto ID",
+            "manageHelper": "Create, edit, or change your PayCrypto name.",
+            "networkTitle": "Current network",
+            "networkReminder": "Deposits should be made on this network.",
+            "viewSupported": "See supported networks"
+        },
         "network": {
             "defaultLabel": "Current network",
             "defaultValue": "Base",

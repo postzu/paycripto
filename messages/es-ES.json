@@ -51,6 +51,24 @@
             "copy": "Copiar",
             "copied": "Copiado!"
         },
+        "identity": {
+            "title": "Direccion para recibir pagos",
+            "subtitle": "Tu billetera es tu identificador. Recibes directo en ella.",
+            "helper": "Recibe usando la direccion de tu billetera.",
+            "placeholder": "0x0000...0000",
+            "copy": "Copiar",
+            "share": "Compartir",
+            "shareOptions": {
+                "copyLink": "Copiar enlace",
+                "qrCode": "QR Code",
+                "copyAddress": "Copiar direccion"
+            },
+            "manage": "Gestionar PayCrypto ID",
+            "manageHelper": "Crear, editar o cambiar tu nombre PayCrypto.",
+            "networkTitle": "Red actual",
+            "networkReminder": "Los depositos deben hacerse en esta red.",
+            "viewSupported": "Ver redes compatibles"
+        },
         "network": {
             "defaultLabel": "Red actual",
             "defaultValue": "Base",
