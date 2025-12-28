@@ -77,11 +77,94 @@
             "networkLabel": "Network",
             "networkValue": "Base",
             "openReceive": "Open Receive screen",
-            "examplesToggle": "See examples",
-            "examplesTitle": "Examples of apps that accept PIX and send to a wallet:",
-            "examples": {
-                "buyWithPix": "Crypto purchase apps that accept PIX",
-                "exchangeWithdraw": "Exchanges that allow withdrawals to an external wallet"
+            "examplesToggle": "See other options",
+            "examplesHide": "Hide alternatives",
+            "examplesTitle": "Examples of how your money lands on Base",
+            "examplesSubtitle": "See the common routes. We already highlight the best option.",
+            "examplesHelper": "Pick the route that balances cost and speed for you.",
+            "examplesRecommended": {
+                "title": "Simpler and cheaper (recommended)",
+                "route": "PIX -> USDT -> Base",
+                "bullets": {
+                    "speed": "Arrives in 1-2 minutes",
+                    "cost": "Estimated cost: 5-12%",
+                    "risk": "Fewer steps, lower risk"
+                },
+                "footnote": "This is the default PayCripto option."
+            },
+            "examplesAlternatives": {
+                "title": "Other routes (less recommended)",
+                "helper": "Less recommended paths to reach Base.",
+                "option1": {
+                    "title": "Card directly to Base",
+                    "bullets": {
+                        "fast": "Fast",
+                        "cost": "Higher cost: 20-35%",
+                        "use": "Useful in emergencies"
+                    }
+                },
+                "option2": {
+                    "title": "Other network + bridge",
+                    "bullets": {
+                        "tech": "More technical",
+                        "cost": "Can cost more: 30-45%",
+                        "alert": "Watch the network choice"
+                    }
+                },
+                "option3": {
+                    "title": "Via exchange",
+                    "bullets": {
+                        "safe": "Safe and common",
+                        "cost": "Avg. cost: 15-25%",
+                        "time": "May take longer"
+                    }
+                }
+            },
+            "examplesFeeNotice": "Fees change with time and congestion. Small amounts feel fixed fees more.",
+            "examplesClose": "Got it - back"
+        },
+        "otherAssets": {
+            "lineSuffix": "in other assets (awaiting conversion)",
+            "lineTooltip": "These values are not ready to spend. They stay here while they wait to be converted to USDT.",
+            "lineDisclaimer": "Not added to USDT. Visibility only, not spendable balance.",
+            "assets": {
+                "eth": "ETH",
+                "usdc": "USDC",
+                "others": "Others"
+            },
+            "modal": {
+                "title": "Assets waiting to convert",
+                "subtitle": "These values are not in USDT yet. They appear here while they wait for conversion.",
+                "estimatedTag": "Estimated fiat value",
+                "helper": "We always show estimated value.",
+                "helperSecondary": "No chain, no gas, no technical details.",
+                "primaryCta": "Convert to USDT",
+                "secondaryCta": "Got it"
+            },
+            "conversion": {
+                "title": "Convert to USDT",
+                "subtitle": "Choose how to convert your assets. We highlight the lowest-cost option right now.",
+                "recommended": {
+                    "pill": "Recommended option",
+                    "title": "Swap via 1inch (recommended)",
+                    "bullets": {
+                        "route": "Best route across DEXs",
+                        "cost": "Lowest estimated cost right now",
+                        "execution": "Executed in your wallet"
+                    },
+                    "microcopy": "You sign the transaction in your wallet.",
+                    "cta": "Convert via 1inch"
+                },
+                "alternatives": {
+                    "title": "Other conversion options",
+                    "helper": "Collapsed by default; just informational.",
+                    "option1": "Send to external exchange",
+                    "option2": "Convert manually later",
+                    "show": "See other options",
+                    "hide": "Hide other options"
+                },
+                "warning": "Fees may vary by network and liquidity right now.",
+                "ack": "Got it"
             }
         },
         "security": {

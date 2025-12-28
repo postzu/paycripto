@@ -41,7 +41,7 @@
             "show": "Mostrar saldo",
             "conversionNotice": "Conversao estimada em reais.",
             "tooltip": "A conversao e apenas informativa; pode variar conforme o mercado.",
-            "description": "Saldo total (USDT). Conversao estimada em reais."
+            "description": "Saldo total (USDT)."
         },
         "receive": {
             "title": "Receber cripto",
@@ -77,11 +77,94 @@
             "networkLabel": "Rede",
             "networkValue": "Base",
             "openReceive": "Abrir tela Receber",
-            "examplesToggle": "Ver exemplos",
-            "examplesTitle": "Exemplos de apps que aceitam PIX e enviam para carteira:",
-            "examples": {
-                "buyWithPix": "Apps de compra de cripto com PIX",
-                "exchangeWithdraw": "Exchanges que permitem saque para carteira externa"
+            "examplesToggle": "Ver outras opcoes",
+            "examplesHide": "Fechar alternativas",
+            "examplesTitle": "Exemplos de como seu dinheiro chega a Base",
+            "examplesSubtitle": "Veja as rotas mais comuns. Nos ja destacamos a melhor opcao.",
+            "examplesHelper": "Escolha a rota com melhor custo e tempo para voce.",
+            "examplesRecommended": {
+                "title": "Mais simples e barato (recomendado)",
+                "route": "PIX -> USDT -> Base",
+                "bullets": {
+                    "speed": "Chega em 1-2 minutos",
+                    "cost": "Custo estimado: 5-12%",
+                    "risk": "Menos etapas, menor risco"
+                },
+                "footnote": "Essa e a opcao padrao do PayCripto."
+            },
+            "examplesAlternatives": {
+                "title": "Outras formas (menos recomendadas)",
+                "helper": "Caminhos menos recomendados para chegar a Base.",
+                "option1": {
+                    "title": "Cartao direto para Base",
+                    "bullets": {
+                        "fast": "Rapido",
+                        "cost": "Custo maior: 20-35%",
+                        "use": "Util em emergencias"
+                    }
+                },
+                "option2": {
+                    "title": "Outra rede + bridge",
+                    "bullets": {
+                        "tech": "Mais tecnico",
+                        "cost": "Pode custar mais: 30-45%",
+                        "alert": "Requer atencao a rede"
+                    }
+                },
+                "option3": {
+                    "title": "Via exchange",
+                    "bullets": {
+                        "safe": "Seguro e comum",
+                        "cost": "Custo medio: 15-25%",
+                        "time": "Pode levar mais tempo"
+                    }
+                }
+            },
+            "examplesFeeNotice": "As taxas variam conforme horario e congestionamento. Para valores pequenos, taxas fixas pesam mais.",
+            "examplesClose": "Entendi - voltar"
+        },
+        "otherAssets": {
+            "lineSuffix": "em outros ativos (aguardando conversao)",
+            "lineTooltip": "Esses valores ainda nao estao prontos para uso. Eles ficam aqui enquanto aguardam conversao para USDT.",
+            "lineDisclaimer": "Nao soma ao USDT. So visibilidade; nao e saldo disponivel.",
+            "assets": {
+                "eth": "ETH",
+                "usdc": "USDC",
+                "others": "Outros"
+            },
+            "modal": {
+                "title": "Ativos aguardando conversao",
+                "subtitle": "Esses valores ainda nao estao em USDT. Eles aparecem aqui enquanto aguardam conversao.",
+                "estimatedTag": "Valor estimado em fiat",
+                "helper": "Sempre mostramos o valor estimado.",
+                "helperSecondary": "Sem rede, sem gas, sem detalhes tecnicos.",
+                "primaryCta": "Converter para USDT",
+                "secondaryCta": "Entendi"
+            },
+            "conversion": {
+                "title": "Converter para USDT",
+                "subtitle": "Escolha como deseja converter seus ativos. Destacamos a opcao com melhor custo agora.",
+                "recommended": {
+                    "pill": "Opcao recomendada",
+                    "title": "Swap via 1inch (recomendado)",
+                    "bullets": {
+                        "route": "Melhor rota entre DEXs",
+                        "cost": "Menor custo estimado no momento",
+                        "execution": "Execucao direta na sua carteira"
+                    },
+                    "microcopy": "Voce assina a transacao na sua carteira.",
+                    "cta": "Converter via 1inch"
+                },
+                "alternatives": {
+                    "title": "Outras formas de conversao",
+                    "helper": "Opcoes extras (colapsadas por padrao).",
+                    "option1": "Enviar para exchange externa",
+                    "option2": "Converter manualmente depois",
+                    "show": "Ver outras opcoes",
+                    "hide": "Fechar outras opcoes"
+                },
+                "warning": "As taxas podem variar conforme rede e liquidez no momento.",
+                "ack": "Entendi"
             }
         },
         "security": {

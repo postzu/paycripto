@@ -49,13 +49,13 @@ type RegionalEquivalent = {
 
 const PIX_COPY: Record<LocaleKey, PixCopy> = {
   "pt-BR": {
-    heroTitle: "Envie e receba cripto como voce ja usa o PIX.",
+    heroTitle: "Envie, receba e concentre sua renda em cripto - com a simplicidade do PIX.",
     badge: "",
-    experience: "Rapido, simples e sem dor de cabeca.",
-    flow: "Use seu nome PayCripto ou endereco com um fluxo instantaneo, estilo PIX.",
+    experience: "Rapido, simples e sem banco.",
+    flow: "Use seu nome PayCripto ou endereco com fluxo instantaneo para enviar e receber.",
     uxLabel: "Experiencia estilo PIX",
     explainer:
-      "Sem custodia. Suas chaves, seus fundos. Conecte a carteira, confirme e envie/receba como no PIX.",
+      "Sem custodia. Suas chaves, seus fundos. Conecte a carteira, confirme e mova valor como no PIX.",
     instantTitle: "Envios instantaneos",
     languageDescription: "Interface trilingue para quem paga em portugues, ingles ou espanhol.",
     regionHeading: "Como explicamos PIX no seu pais",
@@ -67,10 +67,10 @@ const PIX_COPY: Record<LocaleKey, PixCopy> = {
     detectedLabel: "Mostrando o equivalente da sua regiao",
   },
   "en-US": {
-    heroTitle: "Send and receive crypto the way you already use your instant rail.",
+    heroTitle: "Send, receive, and centralize your income in crypto - as easy as your instant rail.",
     badge: "",
-    experience: "Fast, simple, zero mental load.",
-    flow: "Use your PayCripto name or address with an instant flow like your bank rail.",
+    experience: "Fast, simple, no banks.",
+    flow: "Use your PayCripto name or address with an instant flow for sending and getting paid.",
     uxLabel: "Local-rail UX tuned to your region",
     explainer:
       "No custody. Your keys, your funds. Connect and move value with the instant flow you already know (Zelle, SEPA Instant, UPI...).",
@@ -86,10 +86,10 @@ const PIX_COPY: Record<LocaleKey, PixCopy> = {
     detectedLabel: "Showing the closest rail for you",
   },
   "es-ES": {
-    heroTitle: "Envia y recibe cripto como ya usas tu pago instantaneo.",
+    heroTitle: "Envia, recibe y concentra tus ingresos en cripto - como tu pago instantaneo.",
     badge: "",
-    experience: "Rapido, simple y sin friccion.",
-    flow: "Usa tu nombre PayCripto o direccion con un flujo instantaneo, estilo PIX.",
+    experience: "Rapido, simple y sin banco.",
+    flow: "Usa tu nombre PayCripto o direccion con un flujo instantaneo para enviar y cobrar.",
     uxLabel: "Experiencia estilo rail local",
     explainer:
       "Sin custodia. Tus llaves, tus fondos. Conecta la billetera y mueve valor con el flujo instantaneo que ya conoces (Zelle, SEPA Instant, UPI...).",
@@ -244,6 +244,17 @@ type FeatureCard = {
   icon: typeof CreditCard;
 };
 
+type IncomeCard = {
+  title: string;
+  description: string;
+  icon: typeof CreditCard;
+};
+
+type FaqItem = {
+  question: string;
+  answer: string;
+};
+
 type LandingCopy = {
   primaryCtaLabel: string;
   secondaryCtaLabel: string;
@@ -255,7 +266,6 @@ type LandingCopy = {
   trustTitle: string;
   trustReasons: string[];
   faqTitle: string;
-  faqQuestions: string[];
   tutorialsLabel: string;
   guideTitle: string;
   tutorialBackCta: string;
@@ -264,6 +274,14 @@ type LandingCopy = {
     experience: string;
     languages: string;
     languagesValue: string;
+  };
+  incomeSection: {
+    tag: string;
+    title: string;
+    subtitle: string;
+    cards: IncomeCard[];
+    securityCopy: string;
+    ctaLabel: string;
   };
   stepsSection: {
     tag: string;
@@ -286,7 +304,9 @@ type LandingCopy = {
     nameReadyTitle: string;
     nameReadyDesc: string;
     liveLabel: string;
+    incomeHint: string;
   };
+  faqItems: FaqItem[];
 };
 
 const TUTORIALS: Record<LocaleKey, Tutorial[]> = {
@@ -365,15 +385,28 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
   "pt-BR": {
     primaryCtaLabel: "Criar PayCripto",
     secondaryCtaLabel: "Ver como funciona",
-    heroLead: "Rapido, simples e sem dor de cabeca. Envie como usa o PIX.",
-    heroSupport: "Sem custodia - suas chaves, seus fundos.",
+    heroLead: "Rapido, simples e sem banco. Receba pagamentos direto na sua carteira Base.",
+    heroSupport: "Sem custodia. Sem banco. No seu controle.",
     exampleLabel: "Exemplo real de envio",
-    flowLegend: "Fluxo simples: digita o nome -> insere valor -> confirma.",
+    flowLegend: "Fluxo simples para enviar e receber: digita o nome -> insere valor -> confirma.",
     guideSubtitle: "Comece agora, mesmo sem saber nada de cripto.",
     trustTitle: "Por que confiar?",
     trustReasons: ["Auditoria", "Codigo aberto (se for)", "Roadmap simples"],
     faqTitle: "Perguntas rapidas",
-    faqQuestions: ["Posso perder meus fundos?", "Tem taxa?", "Funciona fora do Brasil?"],
+    faqItems: [
+      {
+        question: "Posso receber salario no PayCripto?",
+        answer: "Sim. Qualquer pessoa ou empresa pode enviar pagamentos direto para sua carteira Base.",
+      },
+      {
+        question: "Preciso de banco para usar?",
+        answer: "Nao. O PayCripto funciona direto com carteira cripto. Voce decide se e quando converter.",
+      },
+      {
+        question: "Posso perder meus fundos?",
+        answer: "Nao guardamos fundos. Voce conecta a carteira e confirma as operacoes com suas chaves.",
+      },
+    ],
     tutorialsLabel: "Tutoriais rapidos",
     guideTitle: "Guia pratico para sair do zero",
     tutorialBackCta: "Voltar para o passo a passo",
@@ -382,6 +415,18 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       experience: "Experiencia",
       languages: "Idiomas",
       languagesValue: "pt-BR, en-US e es-ES",
+    },
+    incomeSection: {
+      tag: "Receba em cripto",
+      title: "Receba salario e pagamentos direto na sua carteira Base",
+      subtitle: "Empresas, clientes ou plataformas podem pagar voce direto em cripto - sem banco, sem bloqueios, sem espera.",
+      cards: [
+        { title: "Salario internacional", description: "Receba de empresas no Brasil ou fora, direto na sua carteira.", icon: Globe2 },
+        { title: "Freelancers e criadores", description: "Pagamentos globais sem depender de banco ou plataforma.", icon: Zap },
+        { title: "No seu controle", description: "Sem custodia. As chaves sao suas. O dinheiro tambem.", icon: ShieldCheck },
+      ],
+      securityCopy: "O PayCripto nao guarda seus fundos. Voce apenas conecta sua carteira e usa a interface.",
+      ctaLabel: "Ver como receber pagamentos",
     },
     stepsSection: {
       tag: "Passo a passo",
@@ -412,20 +457,34 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       nameReadyTitle: "PayCripto pronto",
       nameReadyDesc: "Seu nome visivel na experiencia",
       liveLabel: "Ao vivo",
+      incomeHint: "Ideal para receber salario e pagamentos recorrentes",
     },
   },
   "en-US": {
     primaryCtaLabel: "Create PayCripto",
     secondaryCtaLabel: "See how it works",
-    heroLead: "Fast, simple, headache-free. Send like your local instant rail.",
-    heroSupport: "Non-custodial - your keys, your funds.",
+    heroLead: "Fast, simple, no banks. Get paid straight to your Base wallet.",
+    heroSupport: "Non-custodial. No banks. You stay in control.",
     exampleLabel: "Real send example",
-    flowLegend: "Simple flow: type the name -> enter amount -> confirm.",
+    flowLegend: "Simple flow to send and get paid: type the name -> enter amount -> confirm.",
     guideSubtitle: "Start now, even if you're new to crypto.",
     trustTitle: "Why trust PayCripto?",
     trustReasons: ["Audit", "Open source (if applicable)", "Simple roadmap"],
     faqTitle: "Quick questions",
-    faqQuestions: ["Can I lose my funds?", "Are there fees?", "Does it work outside Brazil?"],
+    faqItems: [
+      {
+        question: "Can I get my salary in PayCripto?",
+        answer: "Yes. Any person or company can pay you directly to your Base wallet in crypto.",
+      },
+      {
+        question: "Do I need a bank to use it?",
+        answer: "No. PayCripto works directly with your crypto wallet. You decide if and when to convert.",
+      },
+      {
+        question: "Can I lose my funds?",
+        answer: "We never hold funds. You connect your wallet and confirm with your own keys.",
+      },
+    ],
     tutorialsLabel: "Quick tutorials",
     guideTitle: "Practical guide to get started",
     tutorialBackCta: "Back to how it works",
@@ -434,6 +493,18 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       experience: "Experience",
       languages: "Languages",
       languagesValue: "pt-BR, en-US and es-ES",
+    },
+    incomeSection: {
+      tag: "Get paid in crypto",
+      title: "Get salary and payments straight to your Base wallet",
+      subtitle: "Companies, clients, or platforms can pay you directly in crypto - no banks, no holds, no waiting.",
+      cards: [
+        { title: "International salary", description: "Get paid by companies in Brazil or abroad straight to your wallet.", icon: Globe2 },
+        { title: "Freelancers & creators", description: "Global payments without depending on banks or platforms.", icon: Zap },
+        { title: "In your control", description: "Non-custodial. Your keys. Your money.", icon: ShieldCheck },
+      ],
+      securityCopy: "PayCripto never holds your funds. You just connect your wallet and use the interface.",
+      ctaLabel: "See how to get paid",
     },
     stepsSection: {
       tag: "Step by step",
@@ -464,20 +535,34 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       nameReadyTitle: "PayCripto ready",
       nameReadyDesc: "Your name visible in the experience",
       liveLabel: "Live",
+      incomeHint: "Great for salary and recurring payments",
     },
   },
   "es-ES": {
     primaryCtaLabel: "Crear PayCripto",
     secondaryCtaLabel: "Ver como funciona",
-    heroLead: "Rapido, simple y sin friccion. Envia como usas tu rail instantaneo.",
-    heroSupport: "Sin custodia: tus llaves, tus fondos.",
+    heroLead: "Rapido, simple y sin banco. Recibe pagos directo en tu billetera Base.",
+    heroSupport: "Sin custodia. Sin banco. En tu control.",
     exampleLabel: "Ejemplo real de envio",
-    flowLegend: "Flujo simple: escribe el nombre -> pon el monto -> confirma.",
+    flowLegend: "Flujo simple para enviar y cobrar: escribe el nombre -> pon el monto -> confirma.",
     guideSubtitle: "Empieza ahora, incluso si eres nuevo en cripto.",
     trustTitle: "Por que confiar?",
     trustReasons: ["Auditoria", "Codigo abierto (si aplica)", "Roadmap simple"],
     faqTitle: "Preguntas rapidas",
-    faqQuestions: ["Puedo perder mis fondos?", "Hay tarifas?", "Funciona fuera de Brasil?"],
+    faqItems: [
+      {
+        question: "Puedo recibir salario en PayCripto?",
+        answer: "Si. Cualquier persona o empresa puede enviarte pagos directo a tu billetera Base en cripto.",
+      },
+      {
+        question: "Necesito banco para usar?",
+        answer: "No. PayCripto funciona directo con tu billetera cripto. Tu decides si y cuando convertir.",
+      },
+      {
+        question: "Puedo perder mis fondos?",
+        answer: "No custodiamos fondos. Conectas tu billetera y confirmas con tus llaves.",
+      },
+    ],
     tutorialsLabel: "Tutoriales rapidos",
     guideTitle: "Guia practica para empezar",
     tutorialBackCta: "Volver al paso a paso",
@@ -486,6 +571,18 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       experience: "Experiencia",
       languages: "Idiomas",
       languagesValue: "pt-BR, en-US y es-ES",
+    },
+    incomeSection: {
+      tag: "Cobra en cripto",
+      title: "Recibe salario y pagos directo en tu billetera Base",
+      subtitle: "Empresas, clientes o plataformas pueden pagarte directo en cripto - sin banco, sin bloqueos, sin espera.",
+      cards: [
+        { title: "Salario internacional", description: "Recibe de empresas en Brasil o fuera, directo en tu billetera.", icon: Globe2 },
+        { title: "Freelancers y creadores", description: "Pagos globales sin depender de banco o plataforma.", icon: Zap },
+        { title: "En tu control", description: "Sin custodia. Las llaves son tuyas. El dinero tambien.", icon: ShieldCheck },
+      ],
+      securityCopy: "PayCripto no guarda tus fondos. Solo conectas tu billetera y usas la interfaz.",
+      ctaLabel: "Ver como cobrar pagos",
     },
     stepsSection: {
       tag: "Paso a paso",
@@ -516,6 +613,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       nameReadyTitle: "PayCripto listo",
       nameReadyDesc: "Tu nombre visible en la experiencia",
       liveLabel: "En vivo",
+      incomeHint: "Ideal para salario y pagos recurrentes",
     },
   },
 };
@@ -559,6 +657,7 @@ export default function Home() {
   const appPath = `/${locale}/cripto`;
   const tutorials = TUTORIALS[locale];
   const features = landingCopy.featureCards;
+  const incomeSection = landingCopy.incomeSection;
   const steps = landingCopy.stepsSection.steps;
   const openAppCta = locale === "en-US" ? "Open PayCripto" : "Abrir PayCripto";
   const defaultRegion: RegionCode = locale === "pt-BR" ? "br" : locale === "en-US" ? "us" : "eu";
@@ -691,6 +790,7 @@ export default function Home() {
                 <div>
                   <p className="text-xs uppercase tracking-[0.14em] text-white/70">{landingCopy.heroCard.balanceLabel}</p>
                   <p className="mt-2 text-3xl font-bold text-white">USDT 1.240,50</p>
+                  <p className="mt-1 text-xs text-primary/80">{landingCopy.heroCard.incomeHint}</p>
                 </div>
                 <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
                   {landingCopy.heroCard.liveLabel}
@@ -761,6 +861,54 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section
+          id="receba"
+          className="space-y-5 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-primary/10"
+        >
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.14em] text-white/70">
+                <Zap size={14} />
+                {incomeSection.tag}
+              </span>
+              <h2 className="text-2xl font-semibold text-white">{incomeSection.title}</h2>
+              <p className="text-sm text-white/70">{incomeSection.subtitle}</p>
+            </div>
+            <Link
+              href="#tutoriais"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/30"
+            >
+              {incomeSection.ctaLabel}
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {incomeSection.cards.map((card) => (
+              <div
+                key={card.title}
+                className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:-translate-y-1 hover:border-white/20"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                  <card.icon size={18} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-white">{card.title}</p>
+                  <p className="text-sm text-white/70">{card.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-white/15 bg-black/30 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
+              <ShieldCheck size={18} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-white">{landingCopy.heroSupport}</p>
+              <p className="text-sm text-white/70">{incomeSection.securityCopy}</p>
+            </div>
           </div>
         </section>
 
@@ -915,10 +1063,18 @@ export default function Home() {
             <div className="space-y-2">
               <h4 className="text-lg font-semibold text-white">{landingCopy.faqTitle}</h4>
               <ul className="space-y-2 text-sm text-white/75">
-                {landingCopy.faqQuestions.map((question) => (
-                  <li key={question} className="flex items-center gap-2">
-                    <ArrowRight size={14} className="text-primary" />
-                    <span>{question}</span>
+                {landingCopy.faqItems.map((item) => (
+                  <li
+                    key={item.question}
+                    className="rounded-xl border border-white/10 bg-black/30 p-3"
+                  >
+                    <div className="flex items-start gap-2">
+                      <ArrowRight size={14} className="mt-1 text-primary" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-white">{item.question}</p>
+                        <p className="text-sm text-white/70">{item.answer}</p>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -77,11 +77,94 @@
             "networkLabel": "Red",
             "networkValue": "Base",
             "openReceive": "Abrir pantalla Recibir",
-            "examplesToggle": "Ver ejemplos",
-            "examplesTitle": "Ejemplos de apps que aceptan PIX y envian a una billetera:",
-            "examples": {
-                "buyWithPix": "Apps de compra de cripto con PIX",
-                "exchangeWithdraw": "Exchanges que permiten retiro a billetera externa"
+            "examplesToggle": "Ver otras opciones",
+            "examplesHide": "Cerrar alternativas",
+            "examplesTitle": "Ejemplos de como tu dinero llega a Base",
+            "examplesSubtitle": "Mira las rutas mas comunes. Ya destacamos la mejor opcion.",
+            "examplesHelper": "Elige la ruta con mejor equilibrio de costo y tiempo.",
+            "examplesRecommended": {
+                "title": "Mas simple y barato (recomendado)",
+                "route": "PIX -> USDT -> Base",
+                "bullets": {
+                    "speed": "Llega en 1-2 minutos",
+                    "cost": "Costo estimado: 5-12%",
+                    "risk": "Menos pasos, menor riesgo"
+                },
+                "footnote": "Esta es la opcion predeterminada de PayCripto."
+            },
+            "examplesAlternatives": {
+                "title": "Otras formas (menos recomendadas)",
+                "helper": "Caminos menos recomendados para llegar a Base.",
+                "option1": {
+                    "title": "Tarjeta directa a Base",
+                    "bullets": {
+                        "fast": "Rapido",
+                        "cost": "Costo mayor: 20-35%",
+                        "use": "Util en emergencias"
+                    }
+                },
+                "option2": {
+                    "title": "Otra red + bridge",
+                    "bullets": {
+                        "tech": "Mas tecnico",
+                        "cost": "Puede costar mas: 30-45%",
+                        "alert": "Requiere atencion a la red"
+                    }
+                },
+                "option3": {
+                    "title": "Via exchange",
+                    "bullets": {
+                        "safe": "Seguro y comun",
+                        "cost": "Costo medio: 15-25%",
+                        "time": "Puede tardar mas"
+                    }
+                }
+            },
+            "examplesFeeNotice": "Las tarifas varian segun horario y congestion. Para montos pequenos, las tarifas fijas pesan mas.",
+            "examplesClose": "Listo - volver"
+        },
+        "otherAssets": {
+            "lineSuffix": "en otros activos (en espera de conversion)",
+            "lineTooltip": "Estos valores no estan listos para usar. Se muestran aqui mientras esperan conversion a USDT.",
+            "lineDisclaimer": "No se suma al USDT. Es visibilidad, no saldo disponible.",
+            "assets": {
+                "eth": "ETH",
+                "usdc": "USDC",
+                "others": "Otros"
+            },
+            "modal": {
+                "title": "Activos en espera de conversion",
+                "subtitle": "Estos valores aun no estan en USDT. Aparecen aqui mientras esperan conversion.",
+                "estimatedTag": "Valor estimado en fiat",
+                "helper": "Siempre mostramos el valor estimado.",
+                "helperSecondary": "Sin red, sin gas, sin detalles tecnicos.",
+                "primaryCta": "Convertir a USDT",
+                "secondaryCta": "Entendido"
+            },
+            "conversion": {
+                "title": "Convertir a USDT",
+                "subtitle": "Elige como convertir tus activos. Destacamos la opcion de menor costo ahora.",
+                "recommended": {
+                    "pill": "Opcion recomendada",
+                    "title": "Swap via 1inch (recomendado)",
+                    "bullets": {
+                        "route": "Mejor ruta entre DEXs",
+                        "cost": "Menor costo estimado en el momento",
+                        "execution": "Ejecucion directa en tu billetera"
+                    },
+                    "microcopy": "Firmas la transaccion en tu billetera.",
+                    "cta": "Convertir via 1inch"
+                },
+                "alternatives": {
+                    "title": "Otras formas de conversion",
+                    "helper": "Colapsadas por defecto; solo informativo.",
+                    "option1": "Enviar a exchange externa",
+                    "option2": "Convertir manualmente despues",
+                    "show": "Ver otras opciones",
+                    "hide": "Cerrar otras opciones"
+                },
+                "warning": "Las tarifas pueden variar segun red y liquidez en el momento.",
+                "ack": "Entendido"
             }
         },
         "security": {

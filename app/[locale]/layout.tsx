@@ -13,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PayCripto - TransferǦncias cripto simples",
-  description: "Envie cripto como se fosse PIX. Simples, rǭpido e seguro.",
+  title: "PayCripto - Transferencias cripto simples",
+  description: "Envie cripto como se fosse PIX. Simples, rapido e seguro.",
   icons: {
     icon: "/logo-icon.png",
     shortcut: "/logo-icon.png",

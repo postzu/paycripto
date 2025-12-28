@@ -95,6 +95,41 @@ function BaseIcon({ size = 'md' }: { size?: BaseIconSize }) {
     );
 }
 
+type DepositRouteBullet = {
+    text: string;
+    tone?: 'positive' | 'warning' | 'neutral';
+};
+
+type DepositRouteOption = {
+    title: string;
+    bullets: DepositRouteBullet[];
+};
+
+type DepositRoutesCopy = {
+    title: string;
+    subtitle: string;
+    recommended: {
+        title: string;
+        route: string;
+        bullets: DepositRouteBullet[];
+        footnote: string;
+    };
+    alternatives: {
+        title: string;
+        helper: string;
+        options: DepositRouteOption[];
+    };
+    feeNotice: string;
+    closeCta: string;
+};
+
+type PendingAsset = {
+    id: string;
+    label: string;
+    amount?: number;
+    fiatEstimate: number;
+};
+
 export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps) {
     const t = useTranslations();
     const locale = useLocale();
@@ -119,7 +154,10 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
     const [hasCopiedAddress, setHasCopiedAddress] = useState(false);
     const [showWhyBase, setShowWhyBase] = useState(false);
-    const [showDepositExamples, setShowDepositExamples] = useState(false);
+    const [showDepositAlternatives, setShowDepositAlternatives] = useState(false);
+    const [showOtherAssetsModal, setShowOtherAssetsModal] = useState(false);
+    const [showConversionModal, setShowConversionModal] = useState(false);
+    const [showConversionAlternatives, setShowConversionAlternatives] = useState(false);
     const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Wallet connection
@@ -133,7 +171,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const defaultChainOption = switchableChains.find((chain) => chain.id === DEFAULT_CHAIN_ID);
 
     // USDT balance with fiat conversion
-    const { usdtBalance, fiatValue, fiatSymbol, isLoading: isLoadingBalance } = useUsdtBalance(locale);
+    const { usdtBalance, fiatValue, fiatSymbol, fiatCode, isLoading: isLoadingBalance } = useUsdtBalance(locale);
 
     const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
@@ -151,6 +189,93 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const preventionNotice = t('Home.network.compatibilityNotice');
     const supportedNetworksLabel = t('Home.network.seeSupported');
     const depositMicrocopy = t('Home.deposit.microcopy');
+    const depositRoutes = useMemo<DepositRoutesCopy>(() => {
+        return {
+            title: t('Home.deposit.examplesTitle'),
+            subtitle: t('Home.deposit.examplesSubtitle'),
+            recommended: {
+                title: t('Home.deposit.examplesRecommended.title'),
+                route: t('Home.deposit.examplesRecommended.route'),
+                bullets: [
+                    { text: t('Home.deposit.examplesRecommended.bullets.speed'), tone: 'positive' },
+                    { text: t('Home.deposit.examplesRecommended.bullets.cost'), tone: 'positive' },
+                    { text: t('Home.deposit.examplesRecommended.bullets.risk'), tone: 'neutral' },
+                ],
+                footnote: t('Home.deposit.examplesRecommended.footnote'),
+            },
+            alternatives: {
+                title: t('Home.deposit.examplesAlternatives.title'),
+                helper: t('Home.deposit.examplesAlternatives.helper'),
+                options: [
+                    {
+                        title: t('Home.deposit.examplesAlternatives.option1.title'),
+                        bullets: [
+                            { text: t('Home.deposit.examplesAlternatives.option1.bullets.fast'), tone: 'positive' },
+                            { text: t('Home.deposit.examplesAlternatives.option1.bullets.cost'), tone: 'neutral' },
+                            { text: t('Home.deposit.examplesAlternatives.option1.bullets.use'), tone: 'neutral' },
+                        ],
+                    },
+                    {
+                        title: t('Home.deposit.examplesAlternatives.option2.title'),
+                        bullets: [
+                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.tech'), tone: 'neutral' },
+                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.cost'), tone: 'neutral' },
+                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.alert'), tone: 'warning' },
+                        ],
+                    },
+                    {
+                        title: t('Home.deposit.examplesAlternatives.option3.title'),
+                        bullets: [
+                            { text: t('Home.deposit.examplesAlternatives.option3.bullets.safe'), tone: 'positive' },
+                            { text: t('Home.deposit.examplesAlternatives.option3.bullets.cost'), tone: 'neutral' },
+                            { text: t('Home.deposit.examplesAlternatives.option3.bullets.time'), tone: 'warning' },
+                        ],
+                    },
+                ],
+            },
+            feeNotice: t('Home.deposit.examplesFeeNotice'),
+            closeCta: t('Home.deposit.examplesClose'),
+        };
+    }, [locale, t]);
+    const currencyFormatter = useMemo(() => {
+        try {
+            return new Intl.NumberFormat(locale, {
+                style: 'currency',
+                currency: fiatCode || 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        } catch {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+    }, [fiatCode, locale]);
+    const numberFormatter = useMemo(
+        () =>
+            new Intl.NumberFormat(locale, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }),
+        [locale]
+    );
+    const formatCurrency = (value: number) => currencyFormatter.format(value);
+    // Pending assets: until we fetch real token balances, keep it empty to avoid fake values
+    const pendingAssets = useMemo<PendingAsset[]>(() => [], []);
+    const pendingAssetsTotal = useMemo(
+        () => pendingAssets.reduce((sum, asset) => sum + asset.fiatEstimate, 0),
+        [pendingAssets]
+    );
+    const pendingAssetsTotalLabel = showBalance ? formatCurrency(pendingAssetsTotal) : '*****';
+    const otherAssetsHelper = t('Home.otherAssets.lineTooltip');
+    const bulletToneClass = (tone?: DepositRouteBullet['tone']) => {
+        if (tone === 'positive') return 'bg-emerald-400';
+        if (tone === 'warning') return 'bg-amber-400';
+        return 'bg-white/70';
+    };
     const nonCustodialMessage = t('Home.security.nonCustodial');
     const allowedNetworksLabel = useMemo(
         () => ALLOWED_CHAIN_LIST.map((chain) => chain.name).join(', '),
@@ -248,6 +373,8 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         if (!isConnected) {
             setIsReceiveOpen(false);
             setIsDepositOpen(false);
+            setShowOtherAssetsModal(false);
+            setShowConversionModal(false);
         }
     }, [isConnected]);
 
@@ -255,17 +382,25 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         if (networkBlocked) {
             setIsReceiveOpen(false);
             setIsDepositOpen(false);
+            setShowOtherAssetsModal(false);
+            setShowConversionModal(false);
         }
     }, [networkBlocked]);
 
     useEffect(() => {
         if (!isDepositOpen) {
-            setShowDepositExamples(false);
+            setShowDepositAlternatives(false);
         }
         if (!isReceiveOpen && !isDepositOpen) {
             setShowWhyBase(false);
         }
     }, [isDepositOpen, isReceiveOpen]);
+
+    useEffect(() => {
+        if (!showConversionModal) {
+            setShowConversionAlternatives(false);
+        }
+    }, [showConversionModal]);
 
     useEffect(() => {
         return () => {
@@ -565,6 +700,23 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                         aria-label={conversionTooltip}
                                                     />
                                                     <span className="hidden sm:inline">{conversionNotice}</span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {pendingAssetsTotal > 0 && (
+                                            <div className="flex flex-col gap-1 text-xs text-white/65">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowOtherAssetsModal(true)}
+                                                    className="group inline-flex items-center gap-1 text-left text-white/70 hover:text-white"
+                                                    title={otherAssetsHelper}
+                                                >
+                                                    <span className="font-semibold text-white/80">+ {pendingAssetsTotalLabel}</span>
+                                                    <span>{t('Home.otherAssets.lineSuffix')}</span>
+                                                    <Info size={14} className="text-white/50 group-hover:text-white/70" />
+                                                </button>
+                                                <span className="text-[11px] text-white/50">
+                                                    {t('Home.otherAssets.lineDisclaimer')}
                                                 </span>
                                             </div>
                                         )}
@@ -1012,7 +1164,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+                        className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 py-6"
                         onClick={() => setIsDepositOpen(false)}
                     >
                         <motion.div
@@ -1020,7 +1172,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
                             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                            className="relative w-full max-w-md rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4"
+                            className="relative w-full max-w-md rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
@@ -1121,26 +1273,308 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 </div>
                             </div>
 
+                            <div className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-4">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-white/80">{depositRoutes.title}</p>
+                                    <p className="text-xs text-white/60">{depositRoutes.subtitle}</p>
+                                </div>
+
+                                <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/25 via-primary/15 to-black/40 p-4 shadow-lg shadow-primary/20">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                                                <Zap size={14} />
+                                                <span>{depositRoutes.recommended.title}</span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-white">
+                                                {depositRoutes.recommended.route.split('->').map((segment, index, arr) => (
+                                                    <div key={`${segment}-${index}`} className="flex items-center gap-2">
+                                                        <span className="rounded-full bg-black/30 px-2 py-1 uppercase tracking-wide text-[11px] border border-white/15">
+                                                            {segment.trim()}
+                                                        </span>
+                                                        {index < arr.length - 1 && <ArrowRight size={14} className="text-white/60" />}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <ShieldCheck className="text-primary" size={20} />
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                        {depositRoutes.recommended.bullets.map((bullet) => (
+                                            <div key={bullet.text} className="flex items-center gap-2 text-sm text-white/85">
+                                                <span className={`h-2 w-2 rounded-full ${bulletToneClass(bullet.tone)}`} />
+                                                <span>{bullet.text}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="mt-2 text-xs italic text-white/70">{depositRoutes.recommended.footnote}</p>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-full bg-primary/80 text-white/90 hover:bg-primary/65 py-1.5 text-[13px]"
+                                    onClick={() => setIsDepositOpen(false)}
+                                >
+                                    {depositRoutes.closeCta}
+                                </Button>
+
+                                <div className="space-y-2 rounded-lg border border-white/10 bg-black/30 p-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-semibold text-white">{depositRoutes.alternatives.title}</p>
+                                            <p className="text-xs text-white/60">{depositRoutes.alternatives.helper}</p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-xs"
+                                            onClick={() => setShowDepositAlternatives((prev) => !prev)}
+                                        >
+                                            {showDepositAlternatives ? t('Home.deposit.examplesHide') : t('Home.deposit.examplesToggle')}
+                                        </Button>
+                                    </div>
+                                    {showDepositAlternatives && (
+                                        <div className="space-y-3">
+                                            {depositRoutes.alternatives.options.map((option) => (
+                                                <div key={option.title} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                                    <p className="text-sm font-semibold text-white">{option.title}</p>
+                                                    <div className="mt-2 space-y-1.5">
+                                                        {option.bullets.map((bullet) => (
+                                                            <div key={bullet.text} className="flex items-center gap-2 text-sm text-white/80">
+                                                                <span className={`h-2 w-2 rounded-full ${bulletToneClass(bullet.tone)}`} />
+                                                                <span>{bullet.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-50">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle size={16} className="mt-0.5" />
+                                        <p className="leading-relaxed text-amber-50">{depositRoutes.feeNotice}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showOtherAssetsModal && pendingAssetsTotal > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+                        onClick={() => setShowOtherAssetsModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                            className="relative w-full max-w-sm rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                onClick={() => setShowOtherAssetsModal(false)}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-semibold">{t('Home.otherAssets.modal.title')}</h3>
+                                <p className="text-sm text-white/70">{t('Home.otherAssets.modal.subtitle')}</p>
+                            </div>
+
                             <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-semibold text-white/80">{t('Home.deposit.examplesTitle')}</p>
+                                {pendingAssets.map((asset) => (
+                                    <div key={asset.id} className="flex items-center justify-between gap-3 text-sm text-white/80">
+                                        <div className="flex items-center gap-3">
+                                            <BaseIcon size="sm" />
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-white">{asset.label}</span>
+                                                    {typeof asset.amount === 'number' && (
+                                                        <span className="text-white/60">- {numberFormatter.format(asset.amount)}</span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[11px] text-white/50">
+                                                    {t('Home.otherAssets.modal.estimatedTag')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span className="font-semibold text-primary">
+                                            ~ {formatCurrency(asset.fiatEstimate)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="space-y-1 text-xs text-white/60">
+                                <p>{t('Home.otherAssets.modal.helper')}</p>
+                                <p>{t('Home.otherAssets.modal.helperSecondary')}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2 pt-1">
+                                <Button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowOtherAssetsModal(false);
+                                        setShowConversionModal(true);
+                                    }}
+                                >
+                                    {t('Home.otherAssets.modal.primaryCta')}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setShowOtherAssetsModal(false)}
+                                >
+                                    {t('Home.otherAssets.modal.secondaryCta')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showConversionModal && pendingAssetsTotal > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+                        onClick={() => setShowConversionModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                            className="relative w-full max-w-md rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                onClick={() => setShowConversionModal(false)}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-semibold">{t('Home.otherAssets.conversion.title')}</h3>
+                                <p className="text-sm text-white/70">{t('Home.otherAssets.conversion.subtitle')}</p>
+                            </div>
+
+                            <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/10 p-4 shadow-lg shadow-primary/10">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                                            <ShieldCheck size={14} />
+                                            <span>{t('Home.otherAssets.conversion.recommended.pill')}</span>
+                                        </div>
+                                        <p className="text-sm font-semibold text-white">
+                                            {t('Home.otherAssets.conversion.recommended.title')}
+                                        </p>
+                                    </div>
+                                    <ShieldCheck className="text-primary" size={20} />
+                                </div>
+                                <div className="space-y-1 text-sm text-white/80">
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span>{t('Home.otherAssets.conversion.recommended.bullets.route')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span>{t('Home.otherAssets.conversion.recommended.bullets.cost')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span>{t('Home.otherAssets.conversion.recommended.bullets.execution')}</span>
+                                    </div>
+                                </div>
+                                <p className="text-xs italic text-white/70">
+                                    {t('Home.otherAssets.conversion.recommended.microcopy')}
+                                </p>
+                                <Button
+                                    type="button"
+                                    className="w-full"
+                                    onClick={() => {
+                                        setShowConversionModal(false);
+                                        if (typeof window !== 'undefined') {
+                                            window.open('https://app.1inch.io', '_blank', 'noopener,noreferrer');
+                                        }
+                                    }}
+                                >
+                                    {t('Home.otherAssets.conversion.recommended.cta')}
+                                </Button>
+                            </div>
+
+                            <div className="rounded-lg border border-white/10 bg-black/30 p-3 space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <p className="text-sm font-semibold text-white">
+                                            {t('Home.otherAssets.conversion.alternatives.title')}
+                                        </p>
+                                        <p className="text-xs text-white/60">
+                                            {t('Home.otherAssets.conversion.alternatives.helper')}
+                                        </p>
+                                    </div>
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
                                         className="text-xs"
-                                        onClick={() => setShowDepositExamples((prev) => !prev)}
+                                        onClick={() => setShowConversionAlternatives((prev) => !prev)}
                                     >
-                                        {t('Home.deposit.examplesToggle')}
+                                        {showConversionAlternatives
+                                            ? t('Home.otherAssets.conversion.alternatives.hide')
+                                            : t('Home.otherAssets.conversion.alternatives.show')}
                                     </Button>
                                 </div>
-                                {showDepositExamples && (
-                                    <ul className="list-disc pl-4 text-sm text-white/80 space-y-1">
-                                        <li>{t('Home.deposit.examples.buyWithPix')}</li>
-                                        <li>{t('Home.deposit.examples.exchangeWithdraw')}</li>
-                                    </ul>
+                                {showConversionAlternatives && (
+                                    <div className="space-y-2 text-sm text-white/75">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
+                                            <span>{t('Home.otherAssets.conversion.alternatives.option1')}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
+                                            <span>{t('Home.otherAssets.conversion.alternatives.option2')}</span>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
+
+                            <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-50">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={16} className="mt-0.5" />
+                                    <p className="leading-relaxed text-amber-50">
+                                        {t('Home.otherAssets.conversion.warning')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="w-full"
+                                onClick={() => setShowConversionModal(false)}
+                            >
+                                {t('Home.otherAssets.conversion.ack')}
+                            </Button>
                         </motion.div>
                     </motion.div>
                 )}
