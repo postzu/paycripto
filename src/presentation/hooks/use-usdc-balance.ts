@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance, useChainId } from 'wagmi';
-import { localeToCurrency, fetchUsdtPrice, TESTNET_CHAINS } from '@/lib/currency';
+import { localeToCurrency, fetchUsdcPrice, TESTNET_CHAINS } from '@/lib/currency';
 
-interface UseUsdtBalanceReturn {
-    usdtBalance: string;
+interface UseUsdcBalanceReturn {
+    usdcBalance: string;
     fiatValue: string;
     fiatSymbol: string;
     fiatCode: string;
@@ -15,7 +15,7 @@ interface UseUsdtBalanceReturn {
     error: Error | null;
 }
 
-export function useUsdtBalance(locale: string): UseUsdtBalanceReturn {
+export function useUsdcBalance(locale: string): UseUsdcBalanceReturn {
     const { address, isConnected } = useAccount();
     const chainId = useChainId();
     const [fiatRate, setFiatRate] = useState<number>(1);
@@ -24,16 +24,16 @@ export function useUsdtBalance(locale: string): UseUsdtBalanceReturn {
     const fiatInfo = localeToCurrency[locale] || localeToCurrency['en-US'];
 
     // Get current chain info
-    const chainInfo = Object.values(TESTNET_CHAINS).find(c => c.id === chainId) || {
+    const chainInfo = Object.values(TESTNET_CHAINS).find((chain) => chain.id === chainId) || {
         name: 'Unknown',
-        icon: '❓',
+        icon: '🌐',
     };
 
-    // For testnets: Use native balance (ETH) since USDT doesn't exist
-    // We'll treat native balance as "test USDT" for demo purposes
+    // For testnets: Use native balance (ETH) since USDC doesn't exist
+    // We'll treat native balance as "test USDC" for demo purposes
     const { data: nativeBalance, isLoading: isLoadingBalance, error } = useBalance({
-        address: address,
-        chainId: chainId,
+        address,
+        chainId,
         query: {
             enabled: isConnected && !!address,
         },
@@ -43,7 +43,7 @@ export function useUsdtBalance(locale: string): UseUsdtBalanceReturn {
     useEffect(() => {
         async function loadRate() {
             setIsLoadingRate(true);
-            const rate = await fetchUsdtPrice(fiatInfo.code);
+            const rate = await fetchUsdcPrice(fiatInfo.code);
             setFiatRate(rate);
             setIsLoadingRate(false);
         }
@@ -51,16 +51,14 @@ export function useUsdtBalance(locale: string): UseUsdtBalanceReturn {
     }, [fiatInfo.code]);
 
     // Native balance with 18 decimals
-    const balanceValue = nativeBalance
-        ? Number(nativeBalance.value) / 10 ** nativeBalance.decimals
-        : 0;
+    const balanceValue = nativeBalance ? Number(nativeBalance.value) / 10 ** nativeBalance.decimals : 0;
 
-    // For demo: treat native as 1:1 with USDT
-    const usdtBalance = balanceValue.toFixed(4);
+    // For demo: treat native as 1:1 with USDC
+    const usdcBalance = balanceValue.toFixed(4);
     const fiatValue = (balanceValue * fiatRate).toFixed(2);
 
     return {
-        usdtBalance,
+        usdcBalance,
         fiatValue,
         fiatSymbol: fiatInfo.symbol,
         fiatCode: fiatInfo.code,

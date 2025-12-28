@@ -11,15 +11,24 @@ import {
     AlertTriangle,
     ArrowLeft,
     ArrowRight,
+    ArrowDownLeft,
+    ArrowDownToLine,
+    ArrowUpRight,
+    BookOpen,
+    Check,
+    ChevronDown,
+    FileDown,
+    Folder,
     Copy,
     CreditCard,
     Eye,
     EyeOff,
+    ExternalLink,
     Info,
-    LogOut,
+    Pencil,
+    Plus,
     QrCode,
-    Share2,
-    Send,
+    Search,
     ShieldCheck,
     Wallet,
     X,
@@ -28,12 +37,13 @@ import {
 import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations, useLocale } from 'next-intl';
-import { useAccount, useDisconnect, useChainId, useSwitchChain } from 'wagmi';
+import { useAccount, useDisconnect, useChainId, useSwitchChain, useWalletClient, usePublicClient } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useUsdtBalance } from '@/presentation/hooks/use-usdt-balance';
+import { useUsdcBalance } from '@/presentation/hooks/use-usdc-balance';
 import { RecipientWithAddresses, SelectedRecipient } from '@/presentation/components/cripto/types';
 import QRCode from 'qrcode';
 import { LocaleSwitchNotice } from '@/presentation/components/locale/locale-switcher';
+import { AssetsSection } from '@/presentation/components/cripto/assets-section';
 import { TESTNET_CHAINS } from '@/lib/currency';
 import { getAddress } from 'viem';
 
@@ -80,19 +90,28 @@ const DEFAULT_CHAIN_ID = TESTNET_CHAINS.baseSepolia.id;
 
 type BaseIconSize = 'sm' | 'md' | 'lg';
 
-const baseIconSizes: Record<BaseIconSize, { outer: string; inner: string }> = {
-    sm: { outer: 'w-5 h-5', inner: 'w-2.5 h-2.5' },
-    md: { outer: 'w-6 h-6', inner: 'w-3 h-3' },
-    lg: { outer: 'w-7 h-7', inner: 'w-3.5 h-3.5' },
+const baseIconSizes: Record<BaseIconSize, { outer: string; icon: number }> = {
+    sm: { outer: 'h-5 w-5', icon: 12 },
+    md: { outer: 'h-6 w-6', icon: 14 },
+    lg: { outer: 'h-7 w-7', icon: 16 },
 };
 
+
+
+// CircleIcon helper
+function CircleIcon({ icon: Icon, bg = 'bg-white/10', color = 'text-white' }: { icon: React.ElementType; bg?: string; color?: string }) {
+    return (
+        <div className={`flex items-center justify-center rounded-full ${bg} p-3 ${color}`}>
+            <Icon size={20} strokeWidth={2} />
+        </div>
+    );
+}
+
 function BaseIcon({ size = 'md' }: { size?: BaseIconSize }) {
-    const { outer, inner } = baseIconSizes[size] ?? baseIconSizes.md;
+    const { outer } = baseIconSizes[size] ?? baseIconSizes.md;
 
     return (
-        <span className={`relative inline-flex items-center justify-center rounded-full bg-[#0052ff] ${outer}`}>
-            <span className={`rounded-full bg-white ${inner}`} />
-        </span>
+        <span className={`inline-block rounded bg-[#0052FF] ${outer}`} />
     );
 }
 
@@ -131,6 +150,64 @@ type PendingAsset = {
     fiatEstimate: number;
 };
 
+type PaymentGroupRecipient = {
+    id: string;
+    contactId: string;
+    name: string;
+    address: string;
+    addressLabel?: string;
+};
+
+type PaymentGroup = {
+    id: string;
+    name: string;
+    token: string;
+    network: string;
+    recipients: PaymentGroupRecipient[];
+};
+
+type PaymentGroupForm = {
+    name: string;
+    token: string;
+    network: string;
+    recipients: PaymentGroupRecipient[];
+};
+
+type MultisendApp = {
+    id: string;
+    name: string;
+    cta: string;
+    helper?: string;
+    description: string;
+    url: string;
+    recommended?: boolean;
+};
+
+const INITIAL_PAYMENT_GROUPS: PaymentGroup[] = [
+    {
+        id: 'group-salarios',
+        name: 'Salarios mensais - Empresa X',
+        token: 'USDC',
+        network: 'Base',
+        recipients: INITIAL_RECIPIENTS.slice(0, 3).map((contact, index) => ({
+            id: `sample-${index + 1}`,
+            contactId: contact.id,
+            name: contact.name,
+            address: contact.addresses[0]?.address || '',
+            addressLabel: contact.addresses[0]?.label,
+        })),
+    },
+];
+
+type HistoryItem = {
+    id: string;
+    title: string;
+    helper: string;
+    amount: number;
+    token: string;
+    direction: 'in' | 'out';
+};
+
 export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps) {
     const t = useTranslations();
     const locale = useLocale();
@@ -159,7 +236,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [showOtherAssetsModal, setShowOtherAssetsModal] = useState(false);
     const [showConversionModal, setShowConversionModal] = useState(false);
     const [showConversionAlternatives, setShowConversionAlternatives] = useState(false);
-    const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Wallet connection
@@ -172,35 +249,58 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const canSwitchChain = Boolean(switchChain);
     const defaultChainOption = switchableChains.find((chain) => chain.id === DEFAULT_CHAIN_ID);
 
-    // USDT balance with fiat conversion
-    const { usdtBalance, fiatValue, fiatSymbol, fiatCode, isLoading: isLoadingBalance } = useUsdtBalance(locale);
+    // USDC balance with fiat conversion
+    const { usdcBalance, fiatValue, fiatSymbol, fiatCode, isLoading: isLoadingBalance } = useUsdcBalance(locale);
+
+    // Wagmi Clients for Paymaster
+    const { data: wagmiWalletClient } = useWalletClient();
+    const wagmiPublicClient = usePublicClient();
 
     const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
     const defaultNetworkName = t('Home.network.defaultValue');
     const defaultNetworkMeta = t('Home.network.defaultMeta');
     const defaultBadge = t('Home.network.defaultBadge');
-    const currentNetworkName = useMemo(() => {
-        if (!chainId) return defaultNetworkName;
-        const current = switchableChains?.find((network) => network.id === chainId);
-        const currentName = current?.name;
-        if (currentName && currentName.toLowerCase().includes('base')) {
-            return defaultNetworkName;
-        }
-        return currentName || defaultNetworkName;
-    }, [chainId, defaultNetworkName, switchableChains]);
-    const parsedBalance = Number.parseFloat(usdtBalance || '0');
+    const createGroupMemberFromContact = (contact: RecipientWithAddresses, existingId?: string): PaymentGroupRecipient | null => {
+        const primaryAddress = contact.addresses[0];
+        if (!primaryAddress) return null;
+
+        return {
+            id: existingId || `member-${Math.random().toString(36).slice(2, 8)}`,
+            contactId: contact.id,
+            name: contact.name,
+            address: primaryAddress.address,
+            addressLabel: primaryAddress.label,
+        };
+    };
+    const createEmptyGroupForm = (): PaymentGroupForm => ({
+        name: '',
+        token: 'USDC',
+        network: defaultNetworkName,
+        recipients: [],
+    });
+    const [paymentGroups, setPaymentGroups] = useState<PaymentGroup[]>(INITIAL_PAYMENT_GROUPS);
+    const [groupForm, setGroupForm] = useState<PaymentGroupForm>(createEmptyGroupForm);
+    const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+    const [groupContactSearch, setGroupContactSearch] = useState('');
+    const [isGroupsOpen, setIsGroupsOpen] = useState(false);
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+    const [isMultisendModalOpen, setIsMultisendModalOpen] = useState(false);
+    const [showNextStepsModal, setShowNextStepsModal] = useState(false);
+    const [lastExportedGroupName, setLastExportedGroupName] = useState<string>('');
+    const [lastExportedFileName, setLastExportedFileName] = useState<string>('');
+    const [showQuickInstructions, setShowQuickInstructions] = useState(false);
+    const parsedBalance = Number.parseFloat(usdcBalance || '0');
     const hasBalance = Number.isFinite(parsedBalance) && parsedBalance > 0;
-    const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdtBalance) : '*****';
+    const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdcBalance) : '*****';
     const showFiatLine = showBalance && !isLoadingBalance;
     const balanceToggleLabel = showBalance ? t('Home.balance.hide') : t('Home.balance.show');
     const conversionNotice = t('Home.balance.conversionNotice');
     const conversionTooltip = t('Home.balance.tooltip');
     const balanceDescription = t('Home.balance.description');
-    const payCryptoId = shortAddress || t('Home.identity.placeholder');
     const preventionNotice = t('Home.network.compatibilityNotice');
     const supportedNetworksLabel = t('Home.network.seeSupported');
-    const depositMicrocopy = t('Home.deposit.microcopy');
     const depositRoutes = useMemo<DepositRoutesCopy>(() => {
         return {
             title: t('Home.deposit.examplesTitle'),
@@ -248,7 +348,27 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             feeNotice: t('Home.deposit.examplesFeeNotice'),
             closeCta: t('Home.deposit.examplesClose'),
         };
-    }, [locale, t]);
+    }, [t]);
+    const multisendApps = useMemo<MultisendApp[]>(() => {
+        return [
+            {
+                id: 'cryptosender',
+                name: 'CryptoSender',
+                cta: t('Home.paymentGroups.nextSteps.apps.cryptosender.cta'),
+                helper: t('Home.paymentGroups.nextSteps.apps.cryptosender.helper'),
+                description: t('Home.paymentGroups.nextSteps.apps.cryptosender.description'),
+                url: 'https://cryptosender.io/',
+                recommended: true,
+            },
+            {
+                id: 'multisender',
+                name: 'MultiSender Classic',
+                cta: t('Home.paymentGroups.nextSteps.apps.multisender.cta'),
+                description: t('Home.paymentGroups.nextSteps.apps.multisender.description'),
+                url: 'https://classic.multisender.app/',
+            },
+        ];
+    }, [t]);
     const currencyFormatter = useMemo(() => {
         try {
             return new Intl.NumberFormat(locale, {
@@ -275,6 +395,35 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         [locale]
     );
     const formatCurrency = (value: number) => currencyFormatter.format(value);
+    const historyItems = useMemo<HistoryItem[]>(
+        () => [
+            {
+                id: 'tx-1',
+                title: t('Home.historySection.sample.incoming'),
+                helper: `${defaultNetworkName} - Empresa X`,
+                amount: 320,
+                token: 'USDC',
+                direction: 'in',
+            },
+            {
+                id: 'tx-2',
+                title: t('Home.historySection.sample.outgoing'),
+                helper: `${defaultNetworkName} - Joao Santos`,
+                amount: 45,
+                token: 'USDC',
+                direction: 'out',
+            },
+            {
+                id: 'tx-3',
+                title: t('Home.historySection.sample.deposit'),
+                helper: `${defaultNetworkName} - On-ramp`,
+                amount: 180,
+                token: 'USDC',
+                direction: 'in',
+            },
+        ],
+        [defaultNetworkName, t]
+    );
     // Pending assets: until we fetch real token balances, keep it empty to avoid fake values
     const pendingAssets = useMemo<PendingAsset[]>(() => [], []);
     const pendingAssetsTotal = useMemo(
@@ -300,13 +449,199 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             return null;
         }
     };
+    const normalizeText = (value: string) =>
+        value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
     const selectedContact = useMemo(
         () => recipients.find((recipient) => recipient.id === newRecipient.contactId),
         [recipients, newRecipient.contactId]
     );
     const normalizedFormAddress = normalizeAddress(newRecipient.address);
+    const matchingExistingRecipients = useMemo(() => {
+        if (newRecipient.mode !== 'new') return [];
+        const term = normalizeText(newRecipient.name);
+        if (!term) return [];
+
+        return recipients
+            .filter((recipient) => normalizeText(recipient.name).includes(term))
+            .slice(0, 3);
+    }, [newRecipient.mode, newRecipient.name, recipients]);
 
     const createId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+    const shortenWalletAddress = (value: string) =>
+        value.length <= 10 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
+    const getInitials = (name: string) =>
+        name
+            .split(' ')
+            .filter(Boolean)
+            .map((part) => part[0])
+            .slice(0, 2)
+            .join('')
+            .toUpperCase();
+    const getRecipientAddressPreview = (recipient: RecipientWithAddresses) => {
+        const primaryAddress = recipient.addresses[0];
+        if (!primaryAddress) {
+            return t('Recipients.suggestions.noAddress');
+        }
+        const shortened = shortenWalletAddress(primaryAddress.address);
+        return primaryAddress.label ? `${primaryAddress.label} · ${shortened}` : shortened;
+    };
+
+    const contactMapById = useMemo(
+        () =>
+            recipients.reduce<Record<string, RecipientWithAddresses>>((acc, contact) => {
+                acc[contact.id] = contact;
+                return acc;
+            }, {}),
+        [recipients]
+    );
+    const groupSelectedContactIds = useMemo(
+        () => new Set(groupForm.recipients.map((recipient) => recipient.contactId)),
+        [groupForm.recipients]
+    );
+    const filteredGroupContacts = useMemo(() => {
+        const term = normalizeText(groupContactSearch);
+        if (!term) return recipients;
+        return recipients.filter((contact) => {
+            const normalizedName = normalizeText(contact.name);
+            const matchesName = normalizedName.includes(term);
+            const matchesAddress = contact.addresses.some((address) => {
+                const label = normalizeText(address.label || '');
+                const normalizedAddress = normalizeText(address.address);
+                return label.includes(term) || normalizedAddress.includes(term);
+            });
+            return matchesName || matchesAddress;
+        });
+    }, [groupContactSearch, recipients]);
+
+    const resetGroupForm = (group?: PaymentGroup) => {
+        if (group) {
+            const normalizedRecipients = group.recipients
+                .map((recipient) => {
+                    const contact = contactMapById[recipient.contactId];
+                    if (contact) {
+                        return createGroupMemberFromContact(contact, recipient.id) || null;
+                    }
+                    if (!recipient.address) return null;
+                    return {
+                        ...recipient,
+                        id: recipient.id || createId('member'),
+                    };
+                })
+                .filter(Boolean) as PaymentGroupRecipient[];
+            setGroupForm({
+                name: group.name,
+                token: group.token,
+                network: group.network || defaultNetworkName,
+                recipients: normalizedRecipients,
+            });
+            setEditingGroupId(group.id);
+            setGroupContactSearch('');
+            return;
+        }
+        setGroupForm(createEmptyGroupForm());
+        setEditingGroupId(null);
+        setGroupContactSearch('');
+    };
+    const handleOpenCreateGroup = () => {
+        resetGroupForm();
+        setIsGroupModalOpen(true);
+    };
+    const handleOpenEditGroup = (group: PaymentGroup) => {
+        resetGroupForm(group);
+        setIsGroupModalOpen(true);
+    };
+    const handleToggleGroups = () => {
+        setIsGroupsOpen((prev) => {
+            const next = !prev;
+            if (!next) {
+                setExpandedGroupId(null);
+                return next;
+            }
+            setExpandedGroupId((current) => current ?? paymentGroups[0]?.id ?? null);
+            return next;
+        });
+    };
+    /* handleToggleGroupRow removed as unused in new design */
+    const handleToggleContactInGroup = (contact: RecipientWithAddresses) => {
+        const member = createGroupMemberFromContact(contact);
+        if (!member) return;
+        setGroupForm((prev) => {
+            const exists = prev.recipients.some((recipient) => recipient.contactId === contact.id);
+            if (exists) {
+                return {
+                    ...prev,
+                    recipients: prev.recipients.filter((recipient) => recipient.contactId !== contact.id),
+                };
+            }
+            return {
+                ...prev,
+                recipients: [...prev.recipients, member],
+            };
+        });
+    };
+    const canSaveGroup = groupForm.name.trim().length > 0 && groupForm.recipients.length > 0;
+    const handleSaveGroup = () => {
+        const sanitizedRecipients = groupForm.recipients
+            .map((recipient) => ({
+                ...recipient,
+                name: recipient.name.trim(),
+                address: recipient.address.trim(),
+            }))
+            .filter((recipient) => recipient.address !== '' && recipient.contactId);
+
+        if (!groupForm.name.trim() || sanitizedRecipients.length === 0) {
+            return;
+        }
+
+        const payload: PaymentGroup = {
+            id: editingGroupId || createId('group'),
+            name: groupForm.name.trim(),
+            token: groupForm.token || 'USDC',
+            network: groupForm.network || defaultNetworkName,
+            recipients: sanitizedRecipients,
+        };
+
+        setPaymentGroups((prev) => {
+            if (editingGroupId) {
+                return prev.map((group) => (group.id === editingGroupId ? payload : group));
+            }
+            return [payload, ...prev];
+        });
+
+        setIsGroupModalOpen(false);
+        resetGroupForm();
+    };
+    const openMultisendApp = (url: string) => {
+        if (typeof window === 'undefined') return;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+    const handleExportGroup = (group: PaymentGroup) => {
+        const validRecipients = group.recipients.filter((recipient) => recipient.address);
+        if (!validRecipients.length) return;
+        const header = 'address,amount';
+        const rows = validRecipients.map((recipient) => `${recipient.address},`);
+        const csvContent = [header, ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const fileName = `${group.name.replace(/\\s+/g, '-').toLowerCase()}-paycrypto.csv`;
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+        setLastExportedGroupName(group.name);
+        setLastExportedFileName(fileName);
+        setShowQuickInstructions(false);
+        setShowNextStepsModal(true);
+    };
+    const handleCloseGroupModal = () => {
+        setIsGroupModalOpen(false);
+        resetGroupForm();
+    };
 
     const resetNewRecipient = (mode: RecipientMode = 'new', contactId = '') => {
         setNewRecipient({
@@ -317,6 +652,14 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             label: '',
         });
         setQrStatus({ isReading: false, error: null });
+    };
+    const handleUseExistingRecipient = (contactId: string) => {
+        setNewRecipient((prev) => ({
+            ...prev,
+            mode: 'existing',
+            contactId,
+            name: '',
+        }));
     };
 
     useEffect(() => {
@@ -380,16 +723,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         copyFeedbackTimeout.current = setTimeout(() => setHasCopiedAddress(false), 1500);
     };
 
-    const handleShareCopyAddress = async () => {
-        await handleCopyAddress();
-        setIsShareMenuOpen(false);
-    };
-
-    const handleShareQr = () => {
-        setIsShareMenuOpen(false);
-        setIsReceiveOpen(true);
-    };
-
     const handleSelectRecipient = (recipient: SelectedRecipient) => {
         setSelectedRecipient(recipient);
         setView('send');
@@ -401,7 +734,8 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             setIsDepositOpen(false);
             setShowOtherAssetsModal(false);
             setShowConversionModal(false);
-            setIsShareMenuOpen(false);
+            setIsMultisendModalOpen(false);
+            setIsGroupsOpen(false);
         }
     }, [isConnected]);
 
@@ -411,9 +745,22 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             setIsDepositOpen(false);
             setShowOtherAssetsModal(false);
             setShowConversionModal(false);
-            setIsShareMenuOpen(false);
+            setIsMultisendModalOpen(false);
+            setIsGroupsOpen(false);
         }
     }, [networkBlocked]);
+
+    useEffect(() => {
+        if (!isGroupsOpen) {
+            setExpandedGroupId(null);
+            return;
+        }
+
+        const hasValidGroup = paymentGroups.some((group) => group.id === expandedGroupId);
+        if (!hasValidGroup) {
+            setExpandedGroupId(paymentGroups[0]?.id ?? null);
+        }
+    }, [expandedGroupId, isGroupsOpen, paymentGroups]);
 
     useEffect(() => {
         if (!isDepositOpen) {
@@ -438,7 +785,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         };
     }, []);
 
-    const handleConfirmSend = (data: { asset: string; amount: string; chainId: number }) => {
+    const handleConfirmSend = async (data: { asset: string; amount: string; chainId: number }) => {
         if (networkBlocked) {
             return;
         }
@@ -453,9 +800,67 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         const isConfirmed = typeof window === 'undefined' ? true : window.confirm(confirmMessage);
         if (!isConfirmed) return;
 
-        alert(t('Send.sentStatus'));
-        setView('home');
-        setSelectedRecipient(null);
+        try {
+            // Import dynamically to avoid loading on server
+            const { createSmartWalletClient } = await import('@/lib/paymaster');
+            // const { getPublicClient, getWalletClient } = await import('@wagmi/core');
+            // const { config } = await import('@/presentation/providers/web3-provider'); 
+            const { getAddress } = await import('viem'); // Import everything needed
+
+            // We need the wallet client. since we are in a click handler, we can fetch it async if not available in state.
+            // However, useWalletClient hook is better. Let's assume we add it to the component.
+            // For now, to minimize component refactor, we attempt to get it from wagmi core actions if possible, 
+            // or better, rely on the hook I will add.
+
+            // We need the wallet client. since we are in a click handler, we can fetch it async if not available in state.
+            // However, useWalletClient hook is better. Let's assume we add it to the component.
+            // For now, to minimize component refactor, we attempt to get it from wagmi core actions if possible, 
+            // or better, rely on the hook I will add.
+
+            if (!wagmiWalletClient) throw new Error('Wallet not connected');
+
+            const { smartAccountClient } = await createSmartWalletClient(wagmiWalletClient, wagmiPublicClient);
+
+            // Construct the transaction
+            // If asset is ETH/Native
+            let txHash;
+
+            if (data.asset === 'ETH') {
+                txHash = await smartAccountClient.sendTransaction({
+                    to: getAddress(selectedRecipient!.address),
+                    value: parseUnits(data.amount, 18),
+                    data: '0x'
+                });
+            } else if (data.asset === 'USDC') {
+                // ERC20 Transfer
+                // We need the USDC contract address. 
+                const tokenAddress = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; // Base Sepolia
+
+                // Encode transfer(to, amount)
+                const { encodeFunctionData, parseUnits, erc20Abi } = await import('viem');
+                const callData = encodeFunctionData({
+                    abi: erc20Abi,
+                    functionName: 'transfer',
+                    args: [getAddress(selectedRecipient!.address), parseUnits(data.amount, 6)] // USDC has 6 decimals
+                });
+
+                txHash = await smartAccountClient.sendTransaction({
+                    to: tokenAddress,
+                    value: 0n,
+                    data: callData
+                });
+            } else {
+                throw new Error('Unsupported asset for Paymaster demo');
+            }
+
+            alert(`Transaction sent via Circle Paymaster! UserOp Hash: ${txHash}`);
+            setView('home');
+            setSelectedRecipient(null);
+
+        } catch (error) {
+            console.error('Paymaster transaction failed:', error);
+            alert(`Error sending transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     };
 
     const decodeQrFromFile = (file: File) =>
@@ -589,7 +994,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                     : t('Recipients.newRecipientTitle');
 
     return (
-        <div className={`min-h-screen bg-dark text-white font-sans ${isTestnet ? 'pt-10' : ''}`}>
+        <div className={`min-h-screen bg-dark text-white font-sans ${isTestnet ? 'pt-10' : ''} flex flex-col`}>
             {/* Header */}
             <header className="sticky top-0 z-50 bg-dark/90 backdrop-blur-lg border-b border-white/10">
                 <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
@@ -644,7 +1049,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             className="w-full max-w-md rounded-2xl border border-white/10 bg-dark-surface p-6 shadow-2xl space-y-4"
                         >
                             <div className="flex items-start gap-3">
-                                <ShieldCheck className="text-primary mt-1" size={20} />
+                                <ShieldCheck className="mt-1 text-white/80" size={20} strokeWidth={1.75} />
                                 <div className="space-y-2">
                                     <h3 className="text-lg font-semibold">{t('Home.security.unsupportedNetworkTitle')}</h3>
                                     <p className="text-sm text-white/70">
@@ -674,7 +1079,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             </AnimatePresence>
 
             {/* Content */}
-            <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+            <main className="max-w-lg mx-auto px-4 py-6 space-y-4 flex-1 w-full">
                 <AnimatePresence mode="wait">
                     {/* Home View */}
                     {view === 'home' && (
@@ -688,17 +1093,16 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             {/* Balance Card */}
                             {isConnected ? (
                                 <Card
-                                    className={`relative overflow-hidden border ${
-                                        hasBalance
-                                            ? 'border-0 bg-gradient-to-br from-primary via-primary/80 to-secondary p-6'
-                                            : 'border-white/10 bg-white/5 p-4'
-                                    }`}
+                                    className={`relative overflow-hidden border ${hasBalance
+                                        ? 'border-0 bg-gradient-to-br from-primary via-primary/80 to-secondary p-6'
+                                        : 'border-white/10 bg-white/5 p-4'
+                                        }`}
                                 >
                                     <div className="relative z-10 space-y-3">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="space-y-1">
-                                                <span className="text-white/90 text-sm font-semibold tracking-tight">Saldo total</span>
-                                                <p className="text-[11px] text-white/60">{balanceDescription}</p>
+                                                <span className="text-white/80 text-sm font-medium tracking-tight">Saldo total</span>
+                                                <p className="text-[11px] text-white/50">{balanceDescription}</p>
                                             </div>
                                             <button
                                                 onClick={() => setShowBalance(!showBalance)}
@@ -716,7 +1120,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                     {balanceValue}
                                                 </span>
                                             </div>
-                                            <span className="text-sm font-semibold text-white/70">USDT</span>
+                                            <span className="text-sm font-semibold text-white/70">USDC</span>
                                         </div>
                                         {showFiatLine && (
                                             <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
@@ -749,9 +1153,9 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             </div>
                                         )}
                                         {hasBalance && (
-                                            <div className="pt-1 flex items-center gap-2 text-white/70 text-sm">
+                                            <div className="pt-1 flex items-center gap-2 text-white/60 text-sm">
                                                 <span>Ganhe recompensas</span>
-                                                <div className="px-2 py-0.5 bg-white/20 rounded-full text-xs text-white">Novo</div>
+                                                <div className="px-2 py-0.5 bg-white/15 rounded-full text-xs text-white/80">Novo</div>
                                             </div>
                                         )}
                                     </div>
@@ -764,7 +1168,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 </Card>
                             ) : (
                                 <Card className="bg-dark-surface border border-white/10 p-6 text-center">
-                                    <Wallet className="mx-auto text-primary mb-4" size={40} />
+                                    <Wallet className="mx-auto mb-4 text-white/80" size={40} strokeWidth={1.75} />
                                     <h3 className="text-lg font-semibold mb-2">Conecte sua carteira</h3>
                                     <p className="text-white/50 text-sm mb-4">Para enviar e receber cripto</p>
                                     <ConnectButton.Custom>
@@ -777,165 +1181,263 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 </Card>
                             )}
 
-                            {/* Quick Actions (PIX Style) */}
-                            <div className="space-y-3">
-                                <Card
-                                    className={`flex flex-col gap-3 border border-primary/40 bg-primary/15 p-5 transition-colors ${
-                                        isConnected ? 'hover:bg-primary/20 cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                            {/* Deposit - Primary Action */}
+                            <button
+                                onClick={() => isConnected && setIsDepositOpen(true)}
+                                disabled={!isConnected}
+                                className={`w-full group relative overflow-hidden rounded-2xl bg-white text-black p-4 transition-all ${isConnected ? 'hover:brightness-110 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
                                     }`}
-                                    onClick={() => isConnected && setIsDepositOpen(true)}
+                            >
+                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <Plus size={80} strokeWidth={2} />
+                                </div>
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/5 text-black">
+                                            <Plus size={24} strokeWidth={2} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-lg font-bold leading-tight uppercase tracking-tight">{t('Home.actions.deposit')}</p>
+                                            <p className="text-xs font-medium text-black/60">{t('Home.actions.depositHelper')}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* Quick Actions Grid */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => isConnected && setIsReceiveOpen(true)}
+                                    disabled={!isConnected}
+                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-transparent p-4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                                        }`}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/30">
-                                            <CreditCard size={26} />
-                                        </div>
-                                        <div className="flex flex-col items-start gap-0.5">
-                                            <span className="text-base font-semibold text-white">
-                                                {t('Home.actions.deposit')}
-                                            </span>
-                                            <span className="text-xs text-white/80">{t('Home.actions.depositHelper')}</span>
-                                        </div>
-                                        <ArrowRight size={18} className="ml-auto text-white/80" />
-                                    </div>
-                                    <p className="text-xs text-white/80">{depositMicrocopy}</p>
-                                    <div className="flex flex-wrap gap-2 text-[11px] text-white/90">
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
-                                            <Zap size={14} />
-                                            {t('Home.deposit.highlights.instant')}
-                                        </span>
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
-                                            <CreditCard size={14} />
-                                            {t('Home.deposit.highlights.card')}
-                                        </span>
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
-                                            <ShieldCheck size={14} />
-                                            {t('Home.deposit.highlights.safe')}
-                                        </span>
-                                    </div>
-                                </Card>
+                                    <CircleIcon icon={ArrowDownToLine} />
+                                    <span className="text-sm font-medium text-white">{t('Home.actions.receive')}</span>
+                                </button>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Card
-                                        className={`flex flex-col items-start gap-2 p-5 border border-white/5 bg-dark-surface ${
-                                            isConnected ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                                <button
+                                    onClick={() => isConnected && setView('recipients')}
+                                    disabled={!isConnected}
+                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-transparent p-4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
                                         }`}
-                                        onClick={() => isConnected && setIsReceiveOpen(true)}
-                                    >
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-white">
-                                            <QrCode size={22} />
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            <span className="text-sm font-semibold text-white">
-                                                {t('Home.actions.receive')}
-                                            </span>
-                                            <p className="text-xs text-white/60">{t('Home.actions.receiveHelper')}</p>
-                                        </div>
-                                    </Card>
+                                >
+                                    <CircleIcon icon={ArrowUpRight} />
+                                    <span className="text-sm font-medium text-white">{t('Home.actions.transfer')}</span>
+                                </button>
+                            </div>
 
-                                    <Card
-                                        className={`flex flex-col items-start gap-2 p-5 border border-white/5 bg-dark-surface ${
-                                            isConnected ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                                        }`}
-                                        onClick={() => isConnected && setView('recipients')}
+                            {/* Divider for Collapsed Sections */}
+                            <div className="pt-2 space-y-1">
+                                {/* Payment Groups (Row) */}
+                                <div className="overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleGroups}
+                                        className={`w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg ${isGroupsOpen ? 'bg-white/5' : 'hover:bg-white/5'
+                                            }`}
                                     >
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-white">
-                                            <Send size={22} />
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1 rounded-full text-white/70`}>
+                                                <Folder size={18} strokeWidth={1.75} />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-medium text-white/90">{t('Home.paymentGroups.title')}</p>
+                                            </div>
                                         </div>
-                                        <div className="space-y-0.5">
-                                            <span className="text-sm font-semibold text-white">
-                                                {t('Home.actions.transfer')}
-                                            </span>
-                                            <p className="text-xs text-white/60">{t('Home.actions.transferHelper')}</p>
+                                        <div className="flex items-center gap-3">
+                                            {paymentGroups.length > 0 && (
+                                                <span className="text-xs text-white/40 font-medium hidden sm:inline-block">
+                                                    {paymentGroups[0].name}
+                                                    {paymentGroups.length > 1 && ` +${paymentGroups.length - 1}`}
+                                                </span>
+                                            )}
+                                            <ChevronDown
+                                                size={16}
+                                                className={`text-white/40 transition-transform duration-200 ${isGroupsOpen ? 'rotate-180' : ''}`}
+                                            />
                                         </div>
-                                    </Card>
+                                    </button>
+
+                                    <AnimatePresence initial={false}>
+                                        {isGroupsOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="px-1 py-1"
+                                            >
+                                                <div className="space-y-3 pt-2">
+                                                    <div className="flex items-center justify-between gap-2 px-1">
+                                                        <p className="text-xs font-semibold uppercase tracking-wider text-white/40">Seus Grupos</p>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={handleOpenCreateGroup}
+                                                            className="h-6 text-xs gap-1 hover:bg-white/10"
+                                                        >
+                                                            <Plus size={12} />
+                                                            {t('Home.paymentGroups.create')}
+                                                        </Button>
+                                                    </div>
+
+                                                    {paymentGroups.length === 0 ? (
+                                                        <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-white/70">
+                                                            <p>{t('Home.paymentGroups.empty')}</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {paymentGroups.map((group) => (
+                                                                <div
+                                                                    key={group.id}
+                                                                    className="group rounded-xl bg-white/5 p-3 hover:bg-white/10 transition-colors"
+                                                                >
+                                                                    <div className="flex items-start justify-between gap-3">
+                                                                        <div className="space-y-0.5">
+                                                                            <p className="text-base font-semibold text-white">{group.name}</p>
+                                                                            <p className="text-xs font-normal text-white/40">
+                                                                                {t('Home.paymentGroups.recipientsCount', { count: group.recipients.length })}
+                                                                                {' '} · {t('Home.paymentGroups.tokenLabel', { token: group.token, network: group.network || defaultNetworkName })}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={() => handleExportGroup(group)}
+                                                                                className="h-8 w-8 text-white/60 hover:text-white"
+                                                                            >
+                                                                                <FileDown size={16} strokeWidth={1.75} />
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={() => handleOpenEditGroup(group)}
+                                                                                className="h-8 w-8 text-white/60 hover:text-white"
+                                                                            >
+                                                                                <Pencil size={16} strokeWidth={1.75} />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Assets (Row) - No Card wrapper needed as component handles it */}
+                                {isConnected && address ? (
+                                    <AssetsSection address={address} />
+                                ) : null}
+
+                                {/* History (Row) */}
+                                <div className="overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsHistoryOpen((prev) => !prev)}
+                                        className={`w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg ${isHistoryOpen ? 'bg-white/5' : 'hover:bg-white/5'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1 rounded-full text-white/70`}>
+                                                <BookOpen size={18} strokeWidth={1.75} />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-medium text-white/90">{t('Home.actions.history')}</p>
+                                            </div>
+                                        </div>
+                                        <ChevronDown
+                                            size={16}
+                                            className={`text-white/40 transition-transform duration-200 ${isHistoryOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    <AnimatePresence initial={false}>
+                                        {isHistoryOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="px-1 py-1"
+                                            >
+                                                <div className="space-y-2 pt-2">
+                                                    {historyItems.length === 0 ? (
+                                                        <p className="text-xs text-white/50">{t('Home.historySection.empty')}</p>
+                                                    ) : (
+                                                        historyItems.map((item) => {
+                                                            const amountLabel = `${item.direction === 'out' ? '-' : '+'} ${numberFormatter.format(item.amount)} ${item.token}`;
+                                                            return (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${item.direction === 'in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/8 text-white/70'}`}>
+                                                                            {item.direction === 'in' ? <ArrowDownLeft size={16} strokeWidth={1.75} /> : <ArrowUpRight size={16} strokeWidth={1.75} />}
+                                                                        </div>
+                                                                        <div className="text-left">
+                                                                            <p className="text-sm font-medium text-white">{item.title}</p>
+                                                                            <p className="text-[11px] text-white/50">{item.helper}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className={`text-sm font-semibold ${item.direction === 'out' ? 'text-white/80' : 'text-emerald-300'}`}>
+                                                                        {amountLabel}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             </div>
 
-                            {/* Connected Wallet */}
-                            {isConnected && (
-                                <Card className="p-5 bg-white/[0.04] border border-white/5 space-y-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">
-                                            {t('Home.identity.title')}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-white/80">
-                                                <BaseIcon size="sm" />
-                                                <span>{defaultNetworkName}</span>
-                                            </span>
-                                            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">
-                                                <span className="h-2 w-2 rounded-full bg-success shadow-[0_0_0_6px_rgba(34,197,94,0.15)]" />
-                                                <span>{t('Home.walletConnected')}</span>
-                                            </span>
+                            {/* Receive address (technical card) */}
+                            {isConnected && address && (
+                                <Card className="rounded-2xl border border-white/5 bg-black/20 p-4 space-y-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium text-white">{t('Home.identity.title')}</p>
+                                            <p className="text-xs text-white/50">{t('Home.identity.subtitle')}</p>
+                                        </div>
+                                        <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-[11px] text-white/70">
+                                            <BaseIcon size="sm" />
+                                            <span className="font-semibold text-white/80">{t('Home.network.defaultLabel')}</span>
+                                            <span className="text-white/60">{defaultNetworkName}</span>
                                         </div>
                                     </div>
-
-                                    <div className="rounded-2xl border border-white/5 bg-black/40 p-4 shadow-inner">
-                                        <p className="font-mono text-base text-white">{payCryptoId}</p>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="text-xs font-semibold"
-                                            onClick={handleCopyAddress}
-                                        >
-                                            <Copy size={16} className="mr-1" />
-                                            {hasCopiedAddress ? t('Home.receive.copied') : t('Home.identity.copy')}
-                                        </Button>
-                                        <div className="relative">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-xs font-semibold"
-                                                onClick={() => setIsShareMenuOpen((prev) => !prev)}
-                                            >
-                                                <Share2 size={16} className="mr-1" />
-                                                {t('Home.identity.share')}
+                                    <p className="text-[11px] text-white/50">{preventionNotice}</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-xs text-white/50">{t('Home.walletConnected')}</p>
+                                                <p className="font-mono text-base text-white sm:text-lg truncate">{shortAddress}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <Button type="button" variant="secondary" size="sm" onClick={handleCopyAddress}>
+                                                    <Copy size={14} className="mr-1" />
+                                                    {t('Home.identity.copy')}
+                                                </Button>
+                                                <Button type="button" variant="ghost" size="sm" onClick={() => setIsReceiveOpen(true)}>
+                                                    <QrCode size={14} className="mr-1" />
+                                                    {t('Home.actions.receive')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => disconnect()} className="text-white/60 hover:text-red-400">
+                                                {t('Home.disconnect')}
                                             </Button>
-                                            <AnimatePresence>
-                                                {isShareMenuOpen && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: 6 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, y: 6 }}
-                                                        className="absolute left-0 z-10 mt-2 w-52 rounded-xl border border-white/10 bg-dark-surface/95 p-2 shadow-xl backdrop-blur"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/5"
-                                                            onClick={handleShareQr}
-                                                        >
-                                                            <QrCode size={16} />
-                                                            <span>{t('Home.identity.shareOptions.qrCode')}</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/5"
-                                                            onClick={handleShareCopyAddress}
-                                                        >
-                                                            <Copy size={16} />
-                                                            <span>{t('Home.identity.shareOptions.copyAddress')}</span>
-                                                        </button>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="ml-auto text-xs text-white/60 bg-white/5 hover:text-white hover:bg-white/10"
-                                            onClick={() => disconnect()}
-                                        >
-                                            <LogOut size={16} className="mr-1" />
-                                            {t('Home.disconnect')}
-                                        </Button>
                                     </div>
-
                                 </Card>
                             )}
                         </motion.div>
@@ -1037,12 +1539,49 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             )}
                                         </div>
                                     ) : (
-                                        <Input
-                                            label={t('Recipients.fields.name')}
-                                            placeholder="Ex: Joao da Silva"
-                                            value={newRecipient.name}
-                                            onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })}
-                                        />
+                                        <div className="space-y-2">
+                                            <Input
+                                                label={t('Recipients.fields.name')}
+                                                placeholder="Ex: Joao da Silva"
+                                                value={newRecipient.name}
+                                                onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })}
+                                            />
+                                            {matchingExistingRecipients.length > 0 && (
+                                                <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs font-semibold text-white/80">
+                                                            {t('Recipients.suggestions.title')}
+                                                        </p>
+                                                        <p className="text-[11px] text-white/60">
+                                                            {t('Recipients.suggestions.helper')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        {matchingExistingRecipients.map((recipient) => (
+                                                            <button
+                                                                key={recipient.id}
+                                                                type="button"
+                                                                onClick={() => handleUseExistingRecipient(recipient.id)}
+                                                                className="flex w-full items-center gap-3 rounded-lg bg-white/5 px-3 py-2 text-left transition hover:-translate-y-0.5 hover:bg-white/10"
+                                                            >
+                                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-white">
+                                                                    {getInitials(recipient.name)}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <p className="text-sm font-semibold text-white">{recipient.name}</p>
+                                                                    <p className="text-xs text-white/60">
+                                                                        {getRecipientAddressPreview(recipient)}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-white/70">
+                                                                    {t('Recipients.suggestions.useExisting')}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
 
                                     <Input
@@ -1104,9 +1643,12 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                         </motion.div>
                     )}
                 </AnimatePresence>
-                <LocaleSwitchNotice />
             </main>
-
+            {view !== 'recipients' && (
+                <div className="w-full max-w-lg mx-auto px-4 pb-6 mt-auto">
+                    <LocaleSwitchNotice />
+                </div>
+            )}
             <AnimatePresence>
                 {isReceiveOpen && isConnected && address && (
                     <motion.div
@@ -1125,84 +1667,85 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
-                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                className="absolute top-3 right-3 p-2 rounded-full text-white/40 hover:bg-white/5 hover:text-white transition-colors"
                                 onClick={() => setIsReceiveOpen(false)}
                                 aria-label={t('Common.back')}
                             >
                                 <X size={18} />
                             </button>
 
-                            <div className="space-y-3 text-center">
-                                <h3 className="text-lg font-semibold">{t('Home.receive.title')}</h3>
-                                <p className="text-sm text-white/60">{t('Home.receive.subtitle')}</p>
+                            <div className="space-y-6">
+                                {/* Header: título + badge rede */}
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold">{t('Home.receive.title')}</h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowWhyBase(true)}
+                                        className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1 text-[10px] text-white/40 hover:bg-white/10 transition-colors"
+                                    >
+                                        <BaseIcon size="sm" />
+                                        <span>{defaultNetworkName}</span>
+                                    </button>
+                                </div>
 
-                                <div className="mt-2 flex justify-center">
+                                {/* QR Code */}
+                                <div id="receive-qr-container" className="flex flex-col items-center justify-center">
                                     {qrCodeDataUrl ? (
                                         <div className="rounded-2xl bg-white p-3 shadow-lg">
                                             <NextImage
                                                 src={qrCodeDataUrl}
                                                 alt={t('Home.receive.qrAlt')}
-                                                width={208}
-                                                height={208}
-                                                className="h-52 w-52 object-contain"
+                                                width={180}
+                                                height={180}
+                                                className="h-44 w-44 object-contain"
                                                 unoptimized
                                             />
                                         </div>
                                     ) : (
-                                        <div className="h-52 w-52 rounded-2xl border border-white/10 bg-white/5 animate-pulse" />
+                                        <div className="h-44 w-44 rounded-2xl border border-white/10 bg-white/5 animate-pulse" />
                                     )}
+
+                                    {/* Microcopy Warning */}
+                                    <p className="mt-4 text-center text-[11px] text-white/40">
+                                        Envie apenas tokens na rede Base
+                                    </p>
                                 </div>
 
-                                <div className="pt-2 space-y-2">
-                                    <span className="text-xs uppercase tracking-wide text-white/50 block">
-                                        {t('Home.receive.copyLabel')}
-                                    </span>
-                                    <div className="flex items-center justify-center gap-2">
-                                        <span className="font-mono text-sm px-2 py-1 rounded-lg bg-white/5 border border-white/10">
-                                            {shortAddress}
-                                        </span>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="flex items-center gap-2"
-                                            onClick={handleCopyAddress}
-                                        >
-                                            <Copy size={16} />
-                                            <span className="text-xs">
-                                                {hasCopiedAddress ? t('Home.receive.copied') : t('Home.receive.copy')}
-                                            </span>
-                                        </Button>
-                                    </div>
+                                {/* Dois botões: Copiar + Receber (QR) */}
+                                <div className="flex items-center justify-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        size="sm"
+                                        className="flex items-center gap-2 px-6"
+                                        onClick={handleCopyAddress}
+                                    >
+                                        <Copy size={16} />
+                                        <span>{hasCopiedAddress ? t('Home.receive.copied') : t('Home.receive.copy')}</span>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex items-center gap-2 px-4 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                                        onClick={() => {
+                                            // Scroll to QR or show QR inline
+                                            const qrContainer = document.getElementById('receive-qr-container');
+                                            if (qrContainer) {
+                                                qrContainer.scrollIntoView({ behavior: 'smooth' });
+                                            }
+                                        }}
+                                    >
+                                        <QrCode size={16} />
+                                        <span>{t('Home.receive.qrLabel')}</span>
+                                    </Button>
+                                </div>
 
-                                    <div className="mt-3 space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-left">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <BaseIcon size="md" />
-                                                <div>
-                                                    <span className="block text-white/80">{t('Home.network.defaultLabel')}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-semibold text-white">{defaultNetworkName}</span>
-                                                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wide text-white/90">
-                                                            {defaultBadge}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[11px] text-white/70">{defaultNetworkMeta}</span>
-                                                </div>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-xs"
-                                                onClick={() => setShowWhyBase(true)}
-                                            >
-                                                {supportedNetworksLabel}
-                                            </Button>
-                                        </div>
-                                        <p className="text-xs text-white/70">{t('Home.network.defaultHint')}</p>
-                                        <p className="text-xs text-white/70">{preventionNotice}</p>
-                                    </div>
+                                {/* Endereço (agora por último e discreto) */}
+                                <div className="text-center -mt-2">
+                                    <span className="font-mono text-xs tracking-wide text-white/40">
+                                        {shortAddress}
+                                    </span>
                                 </div>
                             </div>
                         </motion.div>
@@ -1331,11 +1874,11 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     <p className="text-xs text-white/60">{depositRoutes.subtitle}</p>
                                 </div>
 
-                                <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/25 via-primary/15 to-black/40 p-4 shadow-lg shadow-primary/20">
+                                <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/25 via-primary/12 to-black/35 p-4 shadow-lg shadow-primary/20">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="space-y-2">
-                                            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-primary">
-                                                <Zap size={14} />
+                                            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+                                                <Zap size={14} strokeWidth={1.75} />
                                                 <span>{depositRoutes.recommended.title}</span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-white">
@@ -1349,7 +1892,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 ))}
                                             </div>
                                         </div>
-                                        <ShieldCheck className="text-primary" size={20} />
+                                        <ShieldCheck className="text-white/80" size={20} strokeWidth={1.75} />
                                     </div>
                                     <div className="mt-3 space-y-2">
                                         {depositRoutes.recommended.bullets.map((bullet) => (
@@ -1419,6 +1962,394 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             </AnimatePresence>
 
             <AnimatePresence>
+                {isGroupModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-6"
+                        onClick={handleCloseGroupModal}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                            className="relative w-full max-w-2xl rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                onClick={handleCloseGroupModal}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Folder size={18} className="text-white/80" strokeWidth={1.75} />
+                                    <h3 className="text-lg font-semibold">
+                                        {editingGroupId ? t('Home.paymentGroups.modal.editTitle') : t('Home.paymentGroups.modal.title')}
+                                    </h3>
+                                </div>
+                                <p className="text-sm text-white/70">{t('Home.paymentGroups.modal.subtitle')}</p>
+                            </div>
+
+                            <Input
+                                label={t('Home.paymentGroups.modal.name')}
+                                placeholder={t('Home.paymentGroups.modal.namePlaceholder')}
+                                value={groupForm.name}
+                                onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                            />
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Input
+                                    label={t('Home.paymentGroups.modal.token')}
+                                    value={groupForm.token}
+                                    onChange={(e) => setGroupForm({ ...groupForm, token: e.target.value })}
+                                />
+                                <Input
+                                    label={t('Home.paymentGroups.modal.network')}
+                                    value={groupForm.network}
+                                    onChange={(e) => setGroupForm({ ...groupForm, network: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-white">
+                                            {t('Home.paymentGroups.modal.peopleTitle')}
+                                        </p>
+                                        <p className="text-xs text-white/60">
+                                            {t('Home.paymentGroups.modal.peopleHelper')}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-white/70">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                                                <ShieldCheck size={12} className="text-white/75" strokeWidth={1.75} />
+                                                <span>{t('Home.paymentGroups.modal.networkHint', { network: groupForm.network || defaultNetworkName })}</span>
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                                                <Check size={12} />
+                                                <span>{t('Home.paymentGroups.modal.noManual')}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80">
+                                        {t('Home.paymentGroups.modal.selectedCount', { count: groupForm.recipients.length })}
+                                    </div>
+                                </div>
+
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                                    <input
+                                        type="text"
+                                        value={groupContactSearch}
+                                        onChange={(e) => setGroupContactSearch(e.target.value)}
+                                        placeholder={t('Home.paymentGroups.modal.searchPlaceholder')}
+                                        className="w-full rounded-lg border border-white/10 bg-black/40 py-3 pl-10 pr-3 text-sm text-white placeholder:text-white/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                                    {filteredGroupContacts.map((contact) => {
+                                        const primary = contact.addresses[0];
+                                        const isSelected = groupSelectedContactIds.has(contact.id);
+                                        const isDisabled = !primary;
+                                        return (
+                                            <button
+                                                key={contact.id}
+                                                type="button"
+                                                disabled={isDisabled}
+                                                onClick={() => handleToggleContactInGroup(contact)}
+                                                className={`w-full rounded-xl border px-3 py-3 text-left transition ${isSelected ? 'border-primary bg-primary/10' : 'border-white/10 bg-black/30 hover:border-white/20 hover:bg-black/40'} ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span
+                                                        className={`mt-1 flex h-4 w-4 items-center justify-center rounded border ${isSelected ? 'border-primary bg-primary text-black' : 'border-white/40 text-white/60'} ${isDisabled ? 'border-white/20' : ''}`}
+                                                    >
+                                                        {isSelected && <Check size={12} />}
+                                                    </span>
+                                                    <div className="flex-1 space-y-1">
+                                                        <p className="text-sm font-semibold text-white">{contact.name}</p>
+                                                        <p className="text-xs text-white/60">
+                                                            {primary ? getRecipientAddressPreview(contact) : t('Home.paymentGroups.modal.noAddress')}
+                                                        </p>
+                                                    </div>
+                                                    <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] font-semibold text-white/70">
+                                                        {groupForm.network || defaultNetworkName}
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                    {filteredGroupContacts.length === 0 && (
+                                        <p className="text-sm text-white/60">{t('Recipients.noRecipients')}</p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-lg border border-dashed border-white/15 bg-black/20 p-3 text-xs text-white/60">
+                                    <p>{t('Home.paymentGroups.modal.csvHint')}</p>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="button"
+                                className="w-full"
+                                disabled={!canSaveGroup}
+                                onClick={handleSaveGroup}
+                            >
+                                {editingGroupId ? t('Home.paymentGroups.modal.saveEdit') : t('Home.paymentGroups.modal.save')}
+                            </Button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isMultisendModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+                        onClick={() => setIsMultisendModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                            className="relative w-full max-w-xl rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                onClick={() => setIsMultisendModalOpen(false)}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
+                                        {t('Home.paymentGroups.toolsModal.appsLabel')}
+                                    </p>
+                                    <h3 className="text-lg font-semibold text-white">
+                                        {t('Home.paymentGroups.toolsModal.title')}
+                                    </h3>
+                                    <p className="text-sm text-white/70">
+                                        {t('Home.paymentGroups.toolsModal.description')}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {multisendApps.map((app) => (
+                                        <div
+                                            key={app.id}
+                                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-4"
+                                        >
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-semibold text-white">{app.name}</p>
+                                                <p className="text-xs text-white/70">{app.description}</p>
+                                                {app.helper && <p className="text-[11px] text-white/60">{app.helper}</p>}
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="shrink-0"
+                                                onClick={() => openMultisendApp(app.url)}
+                                            >
+                                                {t('Home.paymentGroups.toolsModal.open', { app: app.name })}
+                                                <ExternalLink size={14} className="ml-2" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3">
+                                    <AlertTriangle size={16} className="mt-0.5 text-amber-100" />
+                                    <p className="text-xs text-amber-50">
+                                        {t('Home.paymentGroups.toolsModal.warning')}
+                                    </p>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="w-full"
+                                    onClick={() => setIsMultisendModalOpen(false)}
+                                >
+                                    {t('Home.paymentGroups.toolsModal.close')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showNextStepsModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-6"
+                        onClick={() => setShowNextStepsModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 240, damping: 20 }}
+                            className="relative w-full max-w-3xl rounded-2xl bg-dark-surface border border-white/10 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors"
+                                onClick={() => setShowNextStepsModal(false)}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                                        <FileDown size={18} strokeWidth={1.75} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
+                                            {t('Home.paymentGroups.nextSteps.exported', {
+                                                group: lastExportedGroupName || t('Home.paymentGroups.title'),
+                                            })}
+                                        </p>
+                                        <h3 className="text-xl font-semibold text-white">
+                                            {t('Home.paymentGroups.nextSteps.title')}
+                                        </h3>
+                                        <p className="text-sm text-white/70">
+                                            {t('Home.paymentGroups.nextSteps.description')}
+                                        </p>
+                                        {lastExportedFileName && (
+                                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+                                                <span className="rounded-full bg-emerald-400/15 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-emerald-100">
+                                                    {t('Home.paymentGroups.nextSteps.downloadCompleted')}
+                                                </span>
+                                                <span className="rounded bg-white/5 px-2 py-1 font-medium text-white/90">
+                                                    {t('Home.paymentGroups.nextSteps.downloadFileName', {
+                                                        filename: lastExportedFileName,
+                                                    })}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100">
+                                        {t('Home.paymentGroups.nextSteps.checklistTitle')}
+                                    </p>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {[t('Home.paymentGroups.nextSteps.checklist.token'), t('Home.paymentGroups.nextSteps.checklist.network'), t('Home.paymentGroups.nextSteps.checklist.format'), t('Home.paymentGroups.nextSteps.checklist.wallet')].map((item) => (
+                                            <div key={item} className="flex items-center gap-2 text-sm text-white/85">
+                                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-emerald-200">
+                                                    <Check size={14} />
+                                                </span>
+                                                <span>{item}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+                                    <AlertTriangle size={20} className="text-amber-200" />
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-amber-50">
+                                            {t('Home.paymentGroups.nextSteps.warningTitle')}
+                                        </p>
+                                        <p className="text-sm text-amber-50/90">
+                                            {t('Home.paymentGroups.nextSteps.warningDescription')}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-semibold text-white">
+                                            {t('Home.paymentGroups.nextSteps.appsTitle')}
+                                        </p>
+                                        <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/75">
+                                            CSV
+                                        </span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {multisendApps.map((app) => (
+                                            <Button
+                                                key={app.id}
+                                                type="button"
+                                                variant={app.recommended ? 'primary' : 'secondary'}
+                                                className="w-full items-start !justify-start gap-1 text-left"
+                                                onClick={() => openMultisendApp(app.url)}
+                                            >
+                                                <div className="flex w-full items-center justify-between gap-2">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm font-semibold">{app.cta}</span>
+                                                        {app.helper && <span className="text-xs text-white/80">{app.helper}</span>}
+                                                    </div>
+                                                    <ExternalLink size={16} className="text-white/90" />
+                                                </div>
+                                                <p className="text-xs text-white/80">{app.description}</p>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 rounded-xl border border-white/10 bg-black/40 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-semibold text-white">
+                                            {t('Home.paymentGroups.nextSteps.quickGuide.stepsTitle')}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-xs"
+                                            onClick={() => setShowQuickInstructions((prev) => !prev)}
+                                        >
+                                            {t('Home.paymentGroups.nextSteps.quickGuide.cta')}
+                                        </Button>
+                                    </div>
+                                    {showQuickInstructions && (
+                                        <div className="space-y-2 text-sm text-white/80">
+                                            <ol className="list-decimal list-inside space-y-1">
+                                                <li>{t('Home.paymentGroups.nextSteps.quickGuide.step1')}</li>
+                                                <li>{t('Home.paymentGroups.nextSteps.quickGuide.step2')}</li>
+                                                <li>{t('Home.paymentGroups.nextSteps.quickGuide.step3')}</li>
+                                            </ol>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-white/60">{t('Home.paymentGroups.nextSteps.footer')}</p>
+
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="w-full"
+                                    onClick={() => setShowNextStepsModal(false)}
+                                >
+                                    {t('Common.back')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
                 {showOtherAssetsModal && pendingAssetsTotal > 0 && (
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -1465,7 +2396,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 </span>
                                             </div>
                                         </div>
-                                        <span className="font-semibold text-primary">
+                                        <span className="font-semibold text-white">
                                             ~ {formatCurrency(asset.fiatEstimate)}
                                         </span>
                                     </div>
@@ -1533,27 +2464,27 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/10 p-4 shadow-lg shadow-primary/10">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="space-y-1">
-                                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-primary">
-                                            <ShieldCheck size={14} />
+                                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
+                                            <ShieldCheck size={14} strokeWidth={1.75} />
                                             <span>{t('Home.otherAssets.conversion.recommended.pill')}</span>
                                         </div>
                                         <p className="text-sm font-semibold text-white">
                                             {t('Home.otherAssets.conversion.recommended.title')}
                                         </p>
                                     </div>
-                                    <ShieldCheck className="text-primary" size={20} />
+                                    <ShieldCheck className="text-white/80" size={20} strokeWidth={1.75} />
                                 </div>
                                 <div className="space-y-1 text-sm text-white/80">
                                     <div className="flex items-center gap-2">
-                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span className="h-2 w-2 rounded-full bg-white/50" />
                                         <span>{t('Home.otherAssets.conversion.recommended.bullets.route')}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span className="h-2 w-2 rounded-full bg-white/50" />
                                         <span>{t('Home.otherAssets.conversion.recommended.bullets.cost')}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="h-2 w-2 rounded-full bg-primary/70" />
+                                        <span className="h-2 w-2 rounded-full bg-white/50" />
                                         <span>{t('Home.otherAssets.conversion.recommended.bullets.execution')}</span>
                                     </div>
                                 </div>

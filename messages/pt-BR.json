@@ -29,8 +29,9 @@
             "receive": "Receber",
             "receiveHelper": "QR Code ou endereco da carteira",
             "deposit": "Depositar",
+            "depositPill": "Depositar",
             "depositHelper": "Adicionar saldo com PIX ou cartao",
-            "history": "Historico"
+            "history": "Extrato"
         },
         "disconnect": "Desconectar",
         "titles": {
@@ -41,19 +42,42 @@
             "show": "Mostrar saldo",
             "conversionNotice": "Conversao estimada em reais.",
             "tooltip": "A conversao e apenas informativa; pode variar conforme o mercado.",
-            "description": "Saldo total (USDT)."
+            "description": "Saldo total (USDC)."
+        },
+        "assetsSection": {
+            "title": "Ativos",
+            "conversionLabel": "Conversao estimada em {currency}",
+            "subtitle": "Seus tokens em todas as redes",
+            "connectPrompt": "Conecte a carteira para ver USDC, ETH e outros tokens.",
+            "tooltip": "Mostramos apenas ativos com valor acima de 1 USDC para manter sua visao limpa.",
+            "loading": "Carregando saldos em todas as redes...",
+            "empty": "Nenhum ativo encontrado nos saldos minimos.",
+            "estimatedTotal": "Total estimado",
+            "token": "Token",
+            "value": "Valor",
+            "viewExplorer": "Ver no explorador"
+        },
+        "historySection": {
+            "subtitle": "Ultimas movimentacoes",
+            "empty": "Nenhuma movimentacao recente.",
+            "sample": {
+                "incoming": "Pagamento recebido",
+                "outgoing": "Envio para contato",
+                "deposit": "Deposito via PIX"
+            }
         },
         "receive": {
-            "title": "Receber cripto",
+            "title": "Endereço para receber",
             "subtitle": "Mostre o QR Code ou copie o endereco da sua carteira.",
             "qrAlt": "QR Code do endereco da carteira",
             "copyLabel": "Ou copie o endereco",
             "copy": "Copiar",
-            "copied": "Copiado!"
+            "copied": "Copiado!",
+            "qrLabel": "Receber"
         },
         "identity": {
-            "title": "Endereco para receber pagamentos",
-            "subtitle": "Sua carteira e seu identificador. Voce recebe direto nela.",
+            "title": "Endereco para receber",
+            "subtitle": "Seu endereço para receber pagamentos",
             "helper": "Receba usando endereco da carteira.",
             "placeholder": "0x0000...0000",
             "copy": "Copiar",
@@ -76,8 +100,8 @@
             "defaultHint": "Ao enviar de outra carteira ou exchange, selecione sempre a rede Base.",
             "defaultBadge": "Padrao",
             "whyBase": "Por que Base?",
-            "whyBaseTitle": "Por que usar a rede Base?",
-            "whyBaseDesc": "Ela confirma quase na hora e tem taxas bem menores que a Ethereum. Para evitar erros e custos extras, use sempre a rede Base para receber.",
+            "whyBaseTitle": "Base",
+            "whyBaseDesc": "Rede mais rapida e barata. Depositos em outras redes nao aparecem aqui.",
             "currentUnknown": "Rede nao detectada",
             "compatibilityNotice": "Voce esta na rede Base. Depositos em outras redes podem nao aparecer.",
             "seeSupported": "Ver redes suportadas"
@@ -102,7 +126,7 @@
             "examplesHelper": "Escolha a rota com melhor custo e tempo para voce.",
             "examplesRecommended": {
                 "title": "Mais simples e barato (recomendado)",
-                "route": "PIX -> USDT -> Base",
+                "route": "PIX -> USDC -> Base",
                 "bullets": {
                     "speed": "Chega em 1-2 minutos",
                     "cost": "Custo estimado: 5-12%",
@@ -141,10 +165,103 @@
             "examplesFeeNotice": "As taxas variam conforme horario e congestionamento. Para valores pequenos, taxas fixas pesam mais.",
             "examplesClose": "Entendi - voltar"
         },
+        "paymentGroups": {
+            "title": "Grupos de pagamento",
+            "subtitleStrong": "Listas prontas para lote.",
+            "subtitleHighlight": "Envio acontece via dApps na Base.",
+            "helper": "Recorrente",
+            "badge": "Pronto para envio em lote",
+            "create": "Criar grupo",
+            "empty": "Nenhum grupo criado ainda.",
+            "emptyCta": "Comecar um grupo",
+            "recipientsCount": "{count, plural, one {# contato} other {# contatos}}",
+            "tokenLabel": "{token} - {network}",
+            "moreRecipients": "+{count} mais",
+            "scope": "Prepare listas para pagamentos recorrentes (CSV).",
+            "actions": {
+                "exportCsv": "Exportar CSV",
+                "editGroup": "Editar grupo",
+                "viewTools": "Ver dApps compativeis"
+            },
+            "compatibility": "Pagamentos em lote sao feitos via dApps compativeis.",
+            "modal": {
+                "title": "Criar grupo",
+                "editTitle": "Editar grupo",
+                "subtitle": "Selecione contatos existentes e defina token e rede padrao.",
+                "name": "Nome do grupo",
+                "namePlaceholder": "Ex: Salarios - Abril",
+                "token": "Token padrao",
+                "network": "Rede padrao",
+                "peopleTitle": "Adicionar contatos ao grupo",
+                "peopleHelper": "Mesma busca da tela Transferir. Marcou, esta no grupo.",
+                "networkHint": "Rede: {network}",
+                "noManual": "Sem endereco manual, valor ou observacao.",
+                "selectedCount": "{count, plural, one {# contato selecionado} other {# contatos selecionados}}",
+                "searchPlaceholder": "Buscar contato por nome ou endereco",
+                "csvHint": "Exportamos em address,amount. O valor fica em branco para preencher no multisend.",
+                "noAddress": "Contato sem endereco cadastrado",
+                "save": "Salvar grupo",
+                "saveEdit": "Salvar alteracoes"
+            },
+            "howToPay": {
+                "title": "Instrucoes rapidas",
+                "steps": {
+                    "export": "Exporte o CSV no PayCrypto",
+                    "open": "Abra um dApp de multisend",
+                    "connect": "Conecte na rede Base e envie"
+                }
+            },
+            "toolsModal": {
+                "appsLabel": "dApps compativeis",
+                "title": "Pagamentos em lote (Base)",
+                "description": "Pagamentos em lote sao feitos via dApps compativeis.",
+                "warning": "Conecte sua carteira na rede Base.",
+                "close": "Fechar",
+                "open": "Abrir {app}"
+            },
+            "nextSteps": {
+                "title": "Enviar pagamentos em lote",
+                "exported": "CSV do grupo {group} pronto.",
+                "description": "O PayCrypto prepara suas listas. A execucao do pagamento acontece via ferramentas de multisend compativeis com a Base.",
+                "downloadCompleted": "DOWNLOAD CONCLUIDO",
+                "downloadFileName": "Arquivo gerado: {filename}",
+                "checklistTitle": "Checklist visual",
+                "checklist": {
+                    "token": "Token: USDC",
+                    "network": "Rede: Base",
+                    "format": "Formato: address, amount (CSV)",
+                    "wallet": "Carteira: MetaMask / Rabby / WalletConnect"
+                },
+                "warningTitle": "Antes de continuar:",
+                "warningDescription": "Conecte sua carteira na rede Base.",
+                "appsTitle": "Escolha como enviar",
+                "apps": {
+                    "cryptosender": {
+                        "cta": "Usar CryptoSender (recomendado)",
+                        "helper": "Substituto do PIX empresarial",
+                        "description": "Interface simples. Ideal para salarios e pagamentos recorrentes."
+                    },
+                    "multisender": {
+                        "cta": "Usar MultiSender Classic",
+                        "description": "Ferramenta avancada para usuarios experientes."
+                    }
+                },
+                "quickGuide": {
+                    "cta": "Ver instrucoes",
+                    "intro": "",
+                    "stepsTitle": "Como funciona",
+                    "step1": "Abra o dApp de multisend",
+                    "step2": "Conecte sua carteira na rede Base",
+                    "step3": "Envie o CSV exportado pelo PayCrypto",
+                    "closing": ""
+                },
+                "footer": "O PayCrypto nao executa transacoes em lote neste momento."
+            }
+        },
         "otherAssets": {
             "lineSuffix": "em outros ativos (aguardando conversao)",
-            "lineTooltip": "Esses valores ainda nao estao prontos para uso. Eles ficam aqui enquanto aguardam conversao para USDT.",
-            "lineDisclaimer": "Nao soma ao USDT. So visibilidade; nao e saldo disponivel.",
+            "lineTooltip": "Esses valores ainda nao estao prontos para uso. Eles ficam aqui enquanto aguardam conversao para USDC.",
+            "lineDisclaimer": "Nao soma ao USDC. So visibilidade; nao e saldo disponivel.",
             "assets": {
                 "eth": "ETH",
                 "usdc": "USDC",
@@ -152,15 +269,15 @@
             },
             "modal": {
                 "title": "Ativos aguardando conversao",
-                "subtitle": "Esses valores ainda nao estao em USDT. Eles aparecem aqui enquanto aguardam conversao.",
+                "subtitle": "Esses valores ainda nao estao em USDC. Eles aparecem aqui enquanto aguardam conversao.",
                 "estimatedTag": "Valor estimado em fiat",
                 "helper": "Sempre mostramos o valor estimado.",
                 "helperSecondary": "Sem rede, sem gas, sem detalhes tecnicos.",
-                "primaryCta": "Converter para USDT",
+                "primaryCta": "Converter para USDC",
                 "secondaryCta": "Entendi"
             },
             "conversion": {
-                "title": "Converter para USDT",
+                "title": "Converter para USDC",
                 "subtitle": "Escolha como deseja converter seus ativos. Destacamos a opcao com melhor custo agora.",
                 "recommended": {
                     "pill": "Opcao recomendada",
@@ -217,6 +334,12 @@
         },
         "validation": {
             "invalidAddress": "Endereco invalido. Confira se e um endereco EVM valido."
+        },
+        "suggestions": {
+            "title": "Contato ja cadastrado",
+            "helper": "Selecione para adicionar um novo endereco ao contato existente.",
+            "useExisting": "Usar contato",
+            "noAddress": "Sem endereco salvo"
         },
         "fields": {
             "name": "Nome",

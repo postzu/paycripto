@@ -9,10 +9,10 @@ Envios cripto com a fluidez do PIX e identidade clara para quem paga e recebe. E
 
 ## MVP (estado atual)
 - Landing e narrativa do produto em `app/page.tsx` (pt-BR) com call-to-action para `/pt-BR/cripto`, `/en-US/cripto` e `/es-ES/cripto`.
-- Conexão de carteira via RainbowKit/Wagmi com WalletConnect (testnets: Base Sepolia, Sepolia, Arbitrum/Optimism/zkSync/BSC/Loopring).
-- Saldo e conversão: lê saldo nativo da rede conectada e trata como “USDT de teste”, convertendo via CoinGecko para BRL/USD.
+- Conexão de carteira via RainbowKit/Wagmi com WalletConnect (testnets: Base Sepolia, Sepolia, Arbitrum/Optimism/zkSync/BSC).
+- Saldo e conversão: lê saldo nativo da rede conectada e trata como “USDC de teste”, convertendo via CoinGecko para BRL/USD.
 - Catálogo de destinatários: lista mock carregada no client; UI pronta para múltiplos endereços por contato.
-- Wizard de envio com estimativa de taxa e conversão fiat (ETH/USDT/USDC). Hoje a confirmação é simulada (alert + log); não assina nem envia transação.
+- Wizard de envio com estimativa de taxa e conversão fiat (ETH/USDC/USDC). Hoje a confirmação é simulada (alert + log); não assina nem envia transação.
 - Recebimento: exibe QR e permite copiar endereço conectado; scanner de QR para preencher endereço de destino.
 
 ## Próximos passos sugeridos (design thinking)

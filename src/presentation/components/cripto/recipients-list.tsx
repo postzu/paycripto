@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { RecipientWithAddresses, SelectedRecipient } from './types';
@@ -20,18 +20,44 @@ export function RecipientsList({ recipients, onSelect, onAddNew }: RecipientsLis
     const t = useTranslations('Recipients');
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState<{ contactId: string; addressId: string } | null>(null);
+    const [openContactId, setOpenContactId] = useState<string | null>(null);
+
+    const normalize = (value: string) =>
+        value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    const normalizedSearch = normalize(search.trim());
+
+    const addressMatchesSearch = (address: string, label?: string) => {
+        if (!normalizedSearch) return true;
+
+        const normalizedAddress = normalize(address);
+        const normalizedLabel = normalize(label || '');
+        const shortened = normalize(shortenAddress(address));
+
+        return (
+            normalizedAddress.includes(normalizedSearch) ||
+            shortened.includes(normalizedSearch) ||
+            (normalizedLabel && normalizedLabel.includes(normalizedSearch))
+        );
+    };
 
     const filteredRecipients = useMemo(() => {
-        const term = search.toLowerCase();
         return recipients.filter((recipient) => {
-            const matchesName = recipient.name.toLowerCase().includes(term);
+            if (!normalizedSearch) return true;
+
+            const matchesName = normalize(recipient.name).includes(normalizedSearch);
             const matchesAddress = recipient.addresses.some((address) =>
-                address.address.toLowerCase().includes(term)
+                addressMatchesSearch(address.address, address.label)
             );
 
             return matchesName || matchesAddress;
         });
-    }, [recipients, search]);
+    }, [recipients, normalizedSearch]);
+
+    const frequentRecipients = useMemo(
+        () => (normalizedSearch ? filteredRecipients : recipients).slice(0, 5),
+        [filteredRecipients, normalizedSearch, recipients]
+    );
 
     const handleSelectAddress = (recipient: RecipientWithAddresses, addressId: string) => {
         const address = recipient.addresses.find((item) => item.id === addressId);
@@ -53,14 +79,14 @@ export function RecipientsList({ recipients, onSelect, onAddNew }: RecipientsLis
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">{t('selectRecipient')}</h2>
                 <Button variant="ghost" size="sm" onClick={() => onAddNew()}>
-                    <Plus size={18} className="mr-1" />
+                    <Plus size={18} strokeWidth={1.75} className="mr-1" />
                     {t('new')}
                 </Button>
             </div>
 
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} strokeWidth={1.75} />
                 <input
                     type="text"
                     placeholder={t('searchPlaceholder')}
@@ -73,7 +99,7 @@ export function RecipientsList({ recipients, onSelect, onAddNew }: RecipientsLis
                         onClick={() => setSearch('')}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
                     >
-                        <X size={18} />
+                        <X size={18} strokeWidth={1.75} />
                     </button>
                 )}
             </div>
@@ -82,7 +108,7 @@ export function RecipientsList({ recipients, onSelect, onAddNew }: RecipientsLis
             <div>
                 <h3 className="text-sm font-medium text-white/50 mb-3">{t('frequentContacts')}</h3>
                 <div className="flex gap-4 overflow-x-auto pb-2">
-                    {recipients.slice(0, 5).map((recipient) => (
+                    {frequentRecipients.map((recipient) => (
                         <button
                             key={recipient.id}
                             onClick={() => handleSelectAddress(recipient, recipient.addresses[0]?.id || '')}
@@ -117,58 +143,88 @@ export function RecipientsList({ recipients, onSelect, onAddNew }: RecipientsLis
                     </div>
                 ) : (
                     filteredRecipients.map((recipient) => (
-                        <div key={recipient.id} className="p-4 space-y-3 hover:bg-white/5 transition-colors">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
-                                        {recipient.name
-                                            .split(' ')
-                                            .map((n) => n[0])
-                                            .slice(0, 2)
-                                            .join('')
-                                            .toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-white">{recipient.name}</p>
-                                        <p className="text-xs text-white/50">
-                                            {t('fields.addressCount', { count: recipient.addresses.length })}
-                                        </p>
-                                    </div>
+                        <div key={recipient.id} className="p-2 space-y-2 hover:bg-white/5 transition-colors rounded-lg">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setOpenContactId((prev) => (prev === recipient.id ? null : recipient.id))
+                                }
+                                className="w-full flex items-center justify-between gap-3 px-2 py-2 rounded-lg text-left"
+                            >
+                                <div className="flex flex-col">
+                                    <p className="font-medium text-white">{recipient.name}</p>
+                                    <p className="text-xs text-white/50">
+                                        {t('fields.addressCount', { count: recipient.addresses.length })}
+                                    </p>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={() => onAddNew(recipient.id)}>
-                                    <Plus size={16} className="mr-1" />
-                                    {t('addAddress')}
-                                </Button>
-                            </div>
+                                <div className="flex items-center gap-3">
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAddNew(recipient.id);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.stopPropagation();
+                                                onAddNew(recipient.id);
+                                            }
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors cursor-pointer"
+                                    >
+                                        <Plus size={16} strokeWidth={1.75} />
+                                        {t('addAddress')}
+                                    </div>
+                                    <ChevronDown
+                                        size={18}
+                                        strokeWidth={1.75}
+                                        className={cn(
+                                            'text-white/60 transition-transform',
+                                            openContactId === recipient.id ? 'rotate-180' : ''
+                                        )}
+                                    />
+                                </div>
+                            </button>
 
-                            <div className="flex flex-wrap gap-2">
-                                {recipient.addresses.map((address) => {
-                                    const isSelected =
-                                        selected?.contactId === recipient.id && selected?.addressId === address.id;
+                            {(openContactId === recipient.id ||
+                                normalizedSearch ||
+                                filteredRecipients.length === 1) && (
+                                    <div className="flex flex-wrap gap-2 px-2 pb-1">
+                                        {(
+                                            normalizedSearch && !normalize(recipient.name).includes(normalizedSearch)
+                                                ? recipient.addresses.filter((address) =>
+                                                    addressMatchesSearch(address.address, address.label)
+                                                )
+                                                : recipient.addresses
+                                        ).map((address) => {
+                                            const isSelected =
+                                                selected?.contactId === recipient.id && selected?.addressId === address.id;
 
-                                    return (
-                                        <button
-                                            key={address.id}
-                                            onClick={() => handleSelectAddress(recipient, address.id)}
-                                            className={cn(
-                                                'px-3 py-2 rounded-lg border text-left transition-all',
-                                                'bg-white/5 border-white/5 hover:bg-white/10',
-                                                isSelected && 'border-primary bg-primary/10'
-                                            )}
-                                        >
-                                            <p className="text-xs text-white/50">
-                                                {address.label || t('addressLabel')}
-                                            </p>
-                                            <p className="text-sm font-medium text-white">
-                                                {shortenAddress(address.address)}
-                                            </p>
-                                        </button>
-                                    );
-                                })}
-                                {recipient.addresses.length === 0 && (
-                                    <p className="text-sm text-white/50">{t('noRecipients')}</p>
+                                            return (
+                                                <button
+                                                    key={address.id}
+                                                    onClick={() => handleSelectAddress(recipient, address.id)}
+                                                    className={cn(
+                                                        'px-3 py-2 rounded-lg border text-left transition-all',
+                                                        'bg-white/5 border-white/5 hover:bg-white/10',
+                                                        isSelected && 'border-primary bg-primary/10'
+                                                    )}
+                                                >
+                                                    <p className="text-xs text-white/50">
+                                                        {address.label || t('addressLabel')}
+                                                    </p>
+                                                    <p className="text-sm font-medium text-white">
+                                                        {shortenAddress(address.address)}
+                                                    </p>
+                                                </button>
+                                            );
+                                        })}
+                                        {recipient.addresses.length === 0 && (
+                                            <p className="text-sm text-white/50">{t('noRecipients')}</p>
+                                        )}
+                                    </div>
                                 )}
-                            </div>
                         </div>
                     ))
                 )}

@@ -41,7 +41,29 @@
             "show": "Mostrar saldo",
             "conversionNotice": "Conversion estimada en moneda local.",
             "tooltip": "La conversion es solo informativa y puede variar con el mercado.",
-            "description": "Saldo total (USDT). Conversion estimada en fiat."
+            "description": "Saldo total (USDC). Conversion estimada en fiat."
+        },
+        "assetsSection": {
+            "title": "Activos",
+            "conversionLabel": "Conversion estimada en {currency}",
+            "subtitle": "Tus tokens en todas las redes",
+            "connectPrompt": "Conecta tu billetera para ver USDC, ETH y otros tokens.",
+            "tooltip": "Mostramos solo activos arriba de 1 USDC para mantener la vista limpia.",
+            "loading": "Cargando saldos en todas las redes...",
+            "empty": "Ningun activo encontrado por encima del minimo.",
+            "estimatedTotal": "Total estimado",
+            "token": "Token",
+            "value": "Valor",
+            "viewExplorer": "Ver en el explorador"
+        },
+        "historySection": {
+            "subtitle": "Actividad reciente",
+            "empty": "Aun no hay actividad reciente.",
+            "sample": {
+                "incoming": "Pago recibido",
+                "outgoing": "Envio a contacto",
+                "deposit": "Deposito via PIX"
+            }
         },
         "receive": {
             "title": "Recibir cripto",
@@ -52,7 +74,7 @@
             "copied": "Copiado!"
         },
         "identity": {
-            "title": "Direccion para recibir pagos",
+            "title": "Direccion para recibir",
             "subtitle": "Tu billetera es tu identificador. Recibes directo en ella.",
             "helper": "Recibe usando la direccion de tu billetera.",
             "placeholder": "0x0000...0000",
@@ -76,8 +98,8 @@
             "defaultHint": "Al enviar desde otra billetera o exchange, elige siempre la red Base.",
             "defaultBadge": "Predeterminada",
             "whyBase": "Por que Base?",
-            "whyBaseTitle": "Por que usar la red Base?",
-            "whyBaseDesc": "Confirma casi al instante y cuesta mucho menos que Ethereum. Para evitar errores y costos extra, usa siempre la red Base para recibir.",
+            "whyBaseTitle": "Base",
+            "whyBaseDesc": "Red mas rapida y barata. Depositos en otras redes no aparecen aqui.",
             "currentUnknown": "Red no detectada",
             "compatibilityNotice": "Estas en Base. Los depositos en otras redes pueden no aparecer.",
             "seeSupported": "Ver redes soportadas"
@@ -102,7 +124,7 @@
             "examplesHelper": "Elige la ruta con mejor equilibrio de costo y tiempo.",
             "examplesRecommended": {
                 "title": "Mas simple y barato (recomendado)",
-                "route": "PIX -> USDT -> Base",
+                "route": "PIX -> USDC -> Base",
                 "bullets": {
                     "speed": "Llega en 1-2 minutos",
                     "cost": "Costo estimado: 5-12%",
@@ -141,10 +163,103 @@
             "examplesFeeNotice": "Las tarifas varian segun horario y congestion. Para montos pequenos, las tarifas fijas pesan mas.",
             "examplesClose": "Listo - volver"
         },
+        "paymentGroups": {
+            "title": "Grupos de pago",
+            "subtitleStrong": "Listas listas para lote.",
+            "subtitleHighlight": "Envio ocurre via dApps en Base.",
+            "helper": "Recurrente",
+            "badge": "Listo para envio en lote",
+            "create": "Crear grupo",
+            "empty": "Ningun grupo aun.",
+            "emptyCta": "Empezar un grupo",
+            "recipientsCount": "{count, plural, one {# contacto} other {# contactos}}",
+            "tokenLabel": "{token} - {network}",
+            "moreRecipients": "+{count} mas",
+            "scope": "Prepara listas para pagos recurrentes (CSV).",
+            "actions": {
+                "exportCsv": "Exportar CSV",
+                "editGroup": "Editar grupo",
+                "viewTools": "Ver dApps compatibles"
+            },
+            "compatibility": "Pagos en lote se hacen via dApps compatibles.",
+            "modal": {
+                "title": "Crear grupo",
+                "editTitle": "Editar grupo",
+                "subtitle": "Selecciona contactos existentes y define token y red por defecto.",
+                "name": "Nombre del grupo",
+                "namePlaceholder": "Ej: Salarios - Abril",
+                "token": "Token por defecto",
+                "network": "Red por defecto",
+                "peopleTitle": "Agregar contactos al grupo",
+                "peopleHelper": "La misma busqueda de Transferir. Marcado = incluido.",
+                "networkHint": "Red: {network}",
+                "noManual": "Sin direccion manual, monto ni observacion.",
+                "selectedCount": "{count, plural, one {# contacto seleccionado} other {# contactos seleccionados}}",
+                "searchPlaceholder": "Buscar contacto por nombre o direccion",
+                "csvHint": "Exportamos como address,amount. El monto queda en blanco para completar en el flujo de multisend.",
+                "noAddress": "Contacto sin direccion guardada",
+                "save": "Guardar grupo",
+                "saveEdit": "Guardar cambios"
+            },
+            "howToPay": {
+                "title": "Instrucciones rapidas",
+                "steps": {
+                    "export": "Exporta el CSV en PayCrypto",
+                    "open": "Abre un dApp de multisend",
+                    "connect": "Conecta en la red Base y envia"
+                }
+            },
+            "toolsModal": {
+                "appsLabel": "dApps compatibles",
+                "title": "Pagos en lote (Base)",
+                "description": "Pagos en lote se hacen via dApps compatibles.",
+                "warning": "Conecta tu cartera en la red Base.",
+                "close": "Cerrar",
+                "open": "Abrir {app}"
+            },
+            "nextSteps": {
+                "title": "Enviar pagos en lote",
+                "exported": "CSV del grupo {group} listo.",
+                "description": "PayCrypto organiza tus listas. La ejecucion del pago ocurre en herramientas de multisend compatibles con Base.",
+                "downloadCompleted": "DESCARGA COMPLETADA",
+                "downloadFileName": "Archivo generado: {filename}",
+                "checklistTitle": "Checklist visual",
+                "checklist": {
+                    "token": "Token: USDC",
+                    "network": "Red: Base",
+                    "format": "Formato: address, amount (CSV)",
+                    "wallet": "Cartera: MetaMask / Rabby / WalletConnect"
+                },
+                "warningTitle": "Antes de continuar:",
+                "warningDescription": "Conecta tu cartera en la red Base.",
+                "appsTitle": "Elige como enviar",
+                "apps": {
+                    "cryptosender": {
+                        "cta": "Usar CryptoSender (recomendado)",
+                        "helper": "Sustituto del PIX empresarial",
+                        "description": "Interfaz simple. Ideal para nomina y pagos recurrentes."
+                    },
+                    "multisender": {
+                        "cta": "Usar MultiSender Classic",
+                        "description": "Herramienta avanzada para usuarios con experiencia."
+                    }
+                },
+                "quickGuide": {
+                    "cta": "Ver instrucciones",
+                    "intro": "",
+                    "stepsTitle": "Como funciona",
+                    "step1": "Abre el dApp de multisend",
+                    "step2": "Conecta tu cartera en la red Base",
+                    "step3": "Envia el CSV exportado por PayCrypto",
+                    "closing": ""
+                },
+                "footer": "PayCrypto no ejecuta transacciones en lote por ahora."
+            }
+        },
         "otherAssets": {
             "lineSuffix": "en otros activos (en espera de conversion)",
-            "lineTooltip": "Estos valores no estan listos para usar. Se muestran aqui mientras esperan conversion a USDT.",
-            "lineDisclaimer": "No se suma al USDT. Es visibilidad, no saldo disponible.",
+            "lineTooltip": "Estos valores no estan listos para usar. Se muestran aqui mientras esperan conversion a USDC.",
+            "lineDisclaimer": "No se suma al USDC. Es visibilidad, no saldo disponible.",
             "assets": {
                 "eth": "ETH",
                 "usdc": "USDC",
@@ -152,15 +267,15 @@
             },
             "modal": {
                 "title": "Activos en espera de conversion",
-                "subtitle": "Estos valores aun no estan en USDT. Aparecen aqui mientras esperan conversion.",
+                "subtitle": "Estos valores aun no estan en USDC. Aparecen aqui mientras esperan conversion.",
                 "estimatedTag": "Valor estimado en fiat",
                 "helper": "Siempre mostramos el valor estimado.",
                 "helperSecondary": "Sin red, sin gas, sin detalles tecnicos.",
-                "primaryCta": "Convertir a USDT",
+                "primaryCta": "Convertir a USDC",
                 "secondaryCta": "Entendido"
             },
             "conversion": {
-                "title": "Convertir a USDT",
+                "title": "Convertir a USDC",
                 "subtitle": "Elige como convertir tus activos. Destacamos la opcion de menor costo ahora.",
                 "recommended": {
                     "pill": "Opcion recomendada",
@@ -217,6 +332,12 @@
         },
         "validation": {
             "invalidAddress": "Direccion invalida. Asegurate de que sea una direccion EVM valida."
+        },
+        "suggestions": {
+            "title": "El contacto ya existe",
+            "helper": "Usalo para agregar otra direccion sin duplicar.",
+            "useExisting": "Usar contacto",
+            "noAddress": "Sin direccion guardada"
         },
         "fields": {
             "name": "Nombre",

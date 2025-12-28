@@ -5,15 +5,21 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+  ArrowDownLeft,
   ArrowLeftRight,
   ArrowRight,
+  ArrowUpRight,
   BookOpen,
+  CheckCircle2,
+  Copy,
   CreditCard,
+  ExternalLink,
   Globe2,
   Link2,
   Send,
   ShieldCheck,
   Wallet,
+  X,
   Zap,
 } from "lucide-react";
 import { LocaleSwitchNotice } from "@/presentation/components/locale/locale-switcher";
@@ -284,7 +290,6 @@ type LandingCopy = {
   secondaryCtaLabel: string;
   heroLead: string;
   heroSupport: string;
-  exampleLabel: string;
   flowLegend: string;
   guideSubtitle: string;
   trustTitle: string;
@@ -324,18 +329,136 @@ type LandingCopy = {
   securityLabel: string;
   featureCards: FeatureCard[];
   heroCard: {
+    accountState: string;
     balanceLabel: string;
-    nextSendLabel: string;
-    nextSendMeta: string;
-    brandTitle: string;
-    brandDesc: string;
-    nameReadyTitle: string;
-    nameReadyDesc: string;
+    balanceValue: string;
+    balanceFiatHint: string;
+    primaryAction: string;
+    secondaryAction: string;
+    lastTransactionLabel: string;
+    lastTransactionValue: string;
+    lastTransactionMeta: string;
+    statusCopy: string;
     liveLabel: string;
-    incomeHint: string;
   };
   faqItems: FaqItem[];
 };
+
+type TransactionDirection = "recebido" | "enviado";
+type TransactionFilter = "todos" | TransactionDirection;
+
+type TransactionRecord = {
+  id: string;
+  direction: TransactionDirection;
+  asset: string;
+  amount: string;
+  fiatAmount: string;
+  dateLabel: string;
+  time: string;
+  dateFull: string;
+  status: string;
+  network: string;
+  origin: string;
+  destination: string;
+  txId: string;
+  explorerUrl: string;
+};
+
+const STATEMENT_COPY = {
+  title: "EXTRATO",
+  subtitle: "Movimentacoes da sua carteira",
+  microcopy: "Mostramos apenas valores confirmados na blockchain.",
+  viewAllLabel: "Ver tudo ->",
+  viewLessLabel: "Ver menos",
+  filters: [
+    { value: "todos" as TransactionFilter, label: "Todos" },
+    { value: "recebido" as TransactionFilter, label: "Recebidos" },
+    { value: "enviado" as TransactionFilter, label: "Enviados" },
+  ],
+};
+
+const TRANSACTIONS: TransactionRecord[] = [
+  {
+    id: "tx-01",
+    direction: "recebido",
+    asset: "USDC",
+    amount: "120,00",
+    fiatAmount: "≈ R$ 612,40",
+    dateLabel: "Hoje",
+    time: "09:32",
+    dateFull: "27/12/2025 as 09:32",
+    status: "Confirmada",
+    network: "Base",
+    origin: "Carteira externa",
+    destination: "Sua carteira PayCripto",
+    txId: "0x4b2f38c2a9ac8e2b1f5d4a938dc89aa09ad09a2c9b12f44c8a2c9b3e9a1d0f",
+    explorerUrl: "https://basescan.org/tx/0x4b2f38c2a9ac8e2b1f5d4a938dc89aa09ad09a2c9b12f44c8a2c9b3e9a1d0f",
+  },
+  {
+    id: "tx-02",
+    direction: "enviado",
+    asset: "BRL",
+    amount: "3.850,00",
+    fiatAmount: "≈ R$ 3.850,00",
+    dateLabel: "Ontem",
+    time: "18:10",
+    dateFull: "26/12/2025 as 18:10",
+    status: "Confirmada",
+    network: "Base",
+    origin: "Sua carteira PayCripto",
+    destination: "Carteira externa",
+    txId: "0xe9a1d6c0f33ba21d5af8c42d1bd3ec2a7c9f0c12e4bd9fd86a2c4a33d3c2a8d1",
+    explorerUrl: "https://basescan.org/tx/0xe9a1d6c0f33ba21d5af8c42d1bd3ec2a7c9f0c12e4bd9fd86a2c4a33d3c2a8d1",
+  },
+  {
+    id: "tx-03",
+    direction: "recebido",
+    asset: "USDC",
+    amount: "75,00",
+    fiatAmount: "≈ R$ 382,60",
+    dateLabel: "27/12",
+    time: "07:56",
+    dateFull: "27/12/2025 as 07:56",
+    status: "Confirmada",
+    network: "Base",
+    origin: "Carteira externa",
+    destination: "Sua carteira PayCripto",
+    txId: "0xa7134bf19a7c2ed1abf8d21f1c73a0b9dfc92ba5f5bb1a7a6c1da2ff1bafc02e",
+    explorerUrl: "https://basescan.org/tx/0xa7134bf19a7c2ed1abf8d21f1c73a0b9dfc92ba5f5bb1a7a6c1da2ff1bafc02e",
+  },
+  {
+    id: "tx-04",
+    direction: "enviado",
+    asset: "USDC",
+    amount: "30,00",
+    fiatAmount: "≈ R$ 153,10",
+    dateLabel: "26/12",
+    time: "14:22",
+    dateFull: "26/12/2025 as 14:22",
+    status: "Confirmada",
+    network: "Base",
+    origin: "Sua carteira PayCripto",
+    destination: "Carteira externa",
+    txId: "0x7cc4831a0f2b9d8a1c2d3e4f5a6b7c8d9e0f18273b4c5d6e7f8a9b0c1d2e3f4a",
+    explorerUrl: "https://basescan.org/tx/0x7cc4831a0f2b9d8a1c2d3e4f5a6b7c8d9e0f18273b4c5d6e7f8a9b0c1d2e3f4a",
+  },
+  {
+    id: "tx-05",
+    direction: "recebido",
+    asset: "BRLx",
+    amount: "280,00",
+    fiatAmount: "≈ R$ 280,00",
+    dateLabel: "25/12",
+    time: "11:05",
+    dateFull: "25/12/2025 as 11:05",
+    status: "Confirmada",
+    network: "Base",
+    origin: "Carteira externa",
+    destination: "Sua carteira PayCripto",
+    txId: "0xf5d2471bc3ea9d17c4ab8e2f039c5d8a1e2f3b4c5d6e7f8a9b0c1d2e3f4a5b6c",
+    explorerUrl: "https://basescan.org/tx/0xf5d2471bc3ea9d17c4ab8e2f039c5d8a1e2f3b4c5d6e7f8a9b0c1d2e3f4a5b6c",
+  },
+];
 
 const TUTORIALS: Record<LocaleKey, Tutorial[]> = {
   "pt-BR": [
@@ -415,8 +538,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     secondaryCtaLabel: "Ver como funciona",
     heroLead: "Rapido, simples e sem banco. Receba pagamentos direto na sua carteira Base.",
     heroSupport: "Sem custodia. Sem banco. No seu controle.",
-    exampleLabel: "Exemplo real de envio",
-    flowLegend: "Fluxo simples para enviar e receber: digita o nome -> insere valor -> confirma.",
+    flowLegend: "Receba pagamentos globais direto na sua carteira.",
     guideSubtitle: "Comece agora, mesmo sem saber nada de cripto.",
     trustTitle: "Voce no controle. Sempre.",
     trustSubtitle: "Sem custodia. Sem banco. Sem intermediarios.",
@@ -486,15 +608,17 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       { title: "Pronto para o mundo", description: PIX_COPY["pt-BR"].languageDescription, icon: Globe2 },
     ],
     heroCard: {
-      balanceLabel: "Saldo PayCripto",
-      nextSendLabel: "Proximo envio",
-      nextSendMeta: "Para Lucas - 0x98...2f",
-      brandTitle: "Marca a vista",
-      brandDesc: "Interface focada em clareza e zero distracoes.",
-      nameReadyTitle: "PayCripto pronto",
-      nameReadyDesc: "Seu nome visivel na experiencia",
+      accountState: "Conta ativa",
+      balanceLabel: "Saldo disponivel",
+      balanceValue: "USDC 1.240,50",
+      balanceFiatHint: "\u2248 R$ 6.380,00",
+      primaryAction: "Receber pagamento",
+      secondaryAction: "Transferir",
+      lastTransactionLabel: "Ultima transacao",
+      lastTransactionValue: "+ USDC 720,00",
+      lastTransactionMeta: "De Lucas \u2022 agora",
+      statusCopy: "Conta pronta para receber pagamentos",
       liveLabel: "Ao vivo",
-      incomeHint: "Ideal para receber salario e pagamentos recorrentes",
     },
   },
   "en-US": {
@@ -502,8 +626,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     secondaryCtaLabel: "See how it works",
     heroLead: "Fast, simple, no banks. Get paid straight to your Base wallet.",
     heroSupport: "Non-custodial. No banks. You stay in control.",
-    exampleLabel: "Real send example",
-    flowLegend: "Simple flow to send and get paid: type the name -> enter amount -> confirm.",
+    flowLegend: "Receive global payments straight to your wallet.",
     guideSubtitle: "Start now, even if you're new to crypto.",
     trustTitle: "You stay in control. Always.",
     trustSubtitle: "No custody. No banks. No intermediaries.",
@@ -573,15 +696,17 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       { title: "Ready for the world", description: PIX_COPY["en-US"].languageDescription, icon: Globe2 },
     ],
     heroCard: {
-      balanceLabel: "PayCripto balance",
-      nextSendLabel: "Next send",
-      nextSendMeta: "To Lucas - 0x98...2f",
-      brandTitle: "Brand up front",
-      brandDesc: "Interface tuned for clarity and zero distraction.",
-      nameReadyTitle: "PayCripto ready",
-      nameReadyDesc: "Your name visible in the experience",
+      accountState: "Account active",
+      balanceLabel: "Available balance",
+      balanceValue: "USDC 1,240.50",
+      balanceFiatHint: "\u2248 $6,380.00",
+      primaryAction: "Receive payment",
+      secondaryAction: "Transfer",
+      lastTransactionLabel: "Last transaction",
+      lastTransactionValue: "+ USDC 720.00",
+      lastTransactionMeta: "From Lucas \u2022 now",
+      statusCopy: "Account ready to receive payments",
       liveLabel: "Live",
-      incomeHint: "Great for salary and recurring payments",
     },
   },
   "es-ES": {
@@ -589,8 +714,7 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
     secondaryCtaLabel: "Ver como funciona",
     heroLead: "Rapido, simple y sin banco. Recibe pagos directo en tu billetera Base.",
     heroSupport: "Sin custodia. Sin banco. En tu control.",
-    exampleLabel: "Ejemplo real de envio",
-    flowLegend: "Flujo simple para enviar y cobrar: escribe el nombre -> pon el monto -> confirma.",
+    flowLegend: "Recibe pagos globales directo en tu billetera.",
     guideSubtitle: "Empieza ahora, incluso si eres nuevo en cripto.",
     trustTitle: "Tu en control. Siempre.",
     trustSubtitle: "Sin custodia. Sin banco. Sin intermediarios.",
@@ -660,15 +784,17 @@ const LANDING_COPY: Record<LocaleKey, LandingCopy> = {
       { title: "Lista para el mundo", description: PIX_COPY["es-ES"].languageDescription, icon: Globe2 },
     ],
     heroCard: {
-      balanceLabel: "Saldo PayCripto",
-      nextSendLabel: "Proximo envio",
-      nextSendMeta: "Para Lucas - 0x98...2f",
-      brandTitle: "Marca visible",
-      brandDesc: "Interfaz enfocada en claridad y cero distracciones.",
-      nameReadyTitle: "PayCripto listo",
-      nameReadyDesc: "Tu nombre visible en la experiencia",
+      accountState: "Cuenta activa",
+      balanceLabel: "Saldo disponible",
+      balanceValue: "USDC 1.240,50",
+      balanceFiatHint: "\u2248 $6.380,00",
+      primaryAction: "Recibir pago",
+      secondaryAction: "Transferir",
+      lastTransactionLabel: "Ultima transaccion",
+      lastTransactionValue: "+ USDC 720,00",
+      lastTransactionMeta: "De Lucas \u2022 ahora",
+      statusCopy: "Cuenta lista para recibir pagos",
       liveLabel: "En vivo",
-      incomeHint: "Ideal para salario y pagos recurrentes",
     },
   },
 };
@@ -687,7 +813,11 @@ export default function Home() {
   const incomeSection = landingCopy.incomeSection;
   const steps = landingCopy.stepsSection.steps;
   const openAppCta = locale === "en-US" ? "Open PayCripto" : "Abrir PayCripto";
+  const statementCopy = STATEMENT_COPY;
   const [showGlobalExamples, setShowGlobalExamples] = useState(false);
+  const [statementFilter, setStatementFilter] = useState<TransactionFilter>("todos");
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
 
   const primaryEquivalent = useMemo(
     () => equivalents.find((equivalent) => equivalent.code === "br") ?? equivalents[0],
@@ -705,6 +835,24 @@ export default function Home() {
   );
 
   const hasMoreRegions = otherEquivalents.length > 0;
+  const filteredTransactions = useMemo(
+    () => TRANSACTIONS.filter((transaction) => {
+      if (statementFilter === "todos") return true;
+      return transaction.direction === statementFilter;
+    }),
+    [statementFilter]
+  );
+  const visibleTransactions = useMemo(
+    () => (showAllTransactions ? filteredTransactions : filteredTransactions.slice(0, 3)),
+    [filteredTransactions, showAllTransactions]
+  );
+  const getTxIdPreview = (txId: string) => `${txId.slice(0, 6)}...${txId.slice(-4)}`;
+  const handleCopyTxId = () => {
+    if (!selectedTransaction?.txId) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(selectedTransaction.txId);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] via-[#0d1530] to-black text-white">
@@ -756,7 +904,7 @@ export default function Home() {
                 </p>
                 <p className="max-w-xl text-sm text-white/60 sm:text-base">
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-2 py-1 text-white">
-                    <ShieldCheck size={16} className="text-primary" />
+                    <ShieldCheck size={16} className="text-white/80" strokeWidth={1.75} />
                     <span>{landingCopy.heroSupport}</span>
                   </span>
                 </p>
@@ -793,54 +941,51 @@ export default function Home() {
           <div className="relative">
             <div className="absolute -top-10 -right-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
             <div className="absolute -bottom-10 -left-10 h-56 w-56 rounded-full bg-secondary/20 blur-3xl" />
-              <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-primary/30 via-primary/15 to-secondary/25 p-8 shadow-2xl shadow-primary/20">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                <span>{landingCopy.exampleLabel}</span>
-              </div>
+            <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-primary/30 via-primary/15 to-secondary/25 p-8 shadow-2xl shadow-primary/20">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.14em] text-white/70">{landingCopy.heroCard.balanceLabel}</p>
-                  <p className="mt-2 text-3xl font-bold text-white">USDT 1.240,50</p>
-                  <p className="mt-1 text-xs text-primary/80">{landingCopy.heroCard.incomeHint}</p>
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span>{landingCopy.heroCard.accountState}</span>
                 </div>
                 <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
                   {landingCopy.heroCard.liveLabel}
                 </div>
               </div>
 
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                  <p className="text-xs uppercase tracking-[0.12em] text-white/60">{landingCopy.heroCard.nextSendLabel}</p>
-                  <p className="mt-2 text-xl font-semibold text-white">0.25 ETH</p>
-                  <p className="text-xs text-white/60">{landingCopy.heroCard.nextSendMeta}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.12em] text-white/70">{landingCopy.heroCard.brandTitle}</p>
-                  <p className="mt-2 text-lg font-semibold text-white">PayCripto</p>
-                  <p className="text-xs text-white/60">{landingCopy.heroCard.brandDesc}</p>
-                </div>
+              <div className="mt-6 space-y-2">
+                <p className="text-xs uppercase tracking-[0.14em] text-white/70">{landingCopy.heroCard.balanceLabel}</p>
+                <p className="text-4xl font-bold text-white">{landingCopy.heroCard.balanceValue}</p>
+                <p className="text-sm text-white/70">{landingCopy.heroCard.balanceFiatHint}</p>
               </div>
 
-              <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
-                    <Image
-                      src="/logo-icon.png"
-                      alt="PayCripto"
-                      width={78}
-                      height={72}
-                      className="h-7 w-auto"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{landingCopy.heroCard.nameReadyTitle}</p>
-                    <p className="text-xs text-white/60">{landingCopy.heroCard.nameReadyDesc}</p>
-                  </div>
-                </div>
-                <ShieldCheck className="text-white/60" size={20} />
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href={appPath}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-white/90"
+                >
+                  {landingCopy.heroCard.primaryAction}
+                </Link>
+                <Link
+                  href={appPath}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/40"
+                >
+                  {landingCopy.heroCard.secondaryAction}
+                </Link>
               </div>
-              <p className="mt-4 text-xs text-white/70">{landingCopy.flowLegend}</p>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <p className="text-xs uppercase tracking-[0.12em] text-white/60">{landingCopy.heroCard.lastTransactionLabel}</p>
+                <p className="mt-2 text-xl font-semibold text-white">{landingCopy.heroCard.lastTransactionValue}</p>
+                <p className="text-xs text-white/60">{landingCopy.heroCard.lastTransactionMeta}</p>
+              </div>
+
+              <div className="mt-6 space-y-2">
+                <div className="inline-flex items-center gap-2 text-xs text-white/60">
+                  <CheckCircle2 size={14} className="text-white/80" strokeWidth={1.75} />
+                  <span>{landingCopy.heroCard.statusCopy}</span>
+                </div>
+                <p className="text-sm text-white/70">{landingCopy.flowLegend}</p>
+              </div>
             </div>
           </div>
         </main>
@@ -848,6 +993,86 @@ export default function Home() {
         <div className="sm:hidden">
           <LocaleSwitchNotice className="w-full" />
         </div>
+
+        <section className="space-y-5 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-primary/10">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/60">{statementCopy.title}</p>
+              <h3 className="text-2xl font-semibold text-white">{statementCopy.subtitle}</h3>
+              <p className="text-sm text-white/70">Sem hashes, sem enderecos completos. So o que importa.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAllTransactions((prev) => !prev)}
+              className="inline-flex w-fit items-center gap-2 self-start rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/30"
+            >
+              {showAllTransactions ? statementCopy.viewLessLabel : statementCopy.viewAllLabel}
+              <ArrowRight size={16} />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {statementCopy.filters.map((filter) => {
+              const isActive = statementFilter === filter.value;
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => {
+                    setStatementFilter(filter.value);
+                    setShowAllTransactions(false);
+                  }}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-primary text-white shadow-lg shadow-primary/30"
+                      : "border border-white/15 bg-white/5 text-white hover:-translate-y-0.5 hover:border-white/30"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-3">
+            {visibleTransactions.map((transaction) => {
+              const isReceived = transaction.direction === "recebido";
+              return (
+                <button
+                  key={transaction.id}
+                  type="button"
+                  onClick={() => setSelectedTransaction(transaction)}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-left transition hover:-translate-y-1 hover:border-white/20"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`mt-1 flex h-10 w-10 items-center justify-center rounded-xl ${
+                        isReceived ? "bg-emerald-500/10 text-emerald-400" : "bg-sky-500/10 text-sky-400"
+                      }`}
+                    >
+                      {isReceived ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-white">{isReceived ? "Recebido" : "Enviado"}</p>
+                      <p className="text-sm text-white/80">
+                        {transaction.asset} {transaction.amount}
+                      </p>
+                      <p className="text-xs text-white/60">
+                        {transaction.dateLabel} {"\u2022"} {transaction.time}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right text-sm font-semibold text-white">
+                    {isReceived ? "+" : "-"}
+                    {transaction.asset} {transaction.amount}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-white/60">{statementCopy.microcopy}</p>
+        </section>
 
         <section
           id="como-funciona"
@@ -857,8 +1082,8 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.14em] text-white/60">{landingCopy.stepsSection.tag}</p>
             <h2 className="text-2xl font-semibold text-white">{landingCopy.stepsSection.title}</h2>
             <p className="text-sm text-white/70">{landingCopy.stepsSection.helper}</p>
-            <div className="flex items-center gap-2 text-sm text-primary">
-              <ShieldCheck size={16} />
+            <div className="flex items-center gap-2 text-sm text-white/75">
+              <ShieldCheck size={16} strokeWidth={1.75} />
               <span>{landingCopy.stepsSection.badge}</span>
             </div>
           </div>
@@ -868,8 +1093,8 @@ export default function Home() {
                 key={step.title}
                 className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:-translate-y-1 hover:border-white/20"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                  <step.icon size={18} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                  <step.icon size={18} strokeWidth={1.75} />
                 </div>
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-white">{step.title}</p>
@@ -907,8 +1132,8 @@ export default function Home() {
                 key={card.title}
                 className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:-translate-y-1 hover:border-white/20"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                  <card.icon size={18} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                  <card.icon size={18} strokeWidth={1.75} />
                 </div>
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-white">{card.title}</p>
@@ -918,8 +1143,8 @@ export default function Home() {
             ))}
           </div>
           <div className="flex items-start gap-3 rounded-2xl border border-white/15 bg-black/30 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-              <ShieldCheck size={18} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+              <ShieldCheck size={18} strokeWidth={1.75} />
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-white">{landingCopy.heroSupport}</p>
@@ -1050,8 +1275,8 @@ export default function Home() {
                 className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-primary/5"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                    <BookOpen size={18} />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                    <BookOpen size={18} strokeWidth={1.75} />
                   </div>
                   <span className="text-xs uppercase tracking-[0.14em] text-white/60">{landingCopy.tutorialBadge}</span>
                 </div>
@@ -1062,13 +1287,13 @@ export default function Home() {
                 <div className="space-y-2">
                   {tutorial.bullets.map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm text-white/70">
-                      <span className="mt-[6px] inline-block h-2 w-2 rounded-full bg-primary/70" />
+                      <span className="mt-[6px] inline-block h-2 w-2 rounded-full bg-white/50" />
                       <span>{item}</span>
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <ArrowRight size={16} />
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <ArrowRight size={16} strokeWidth={1.75} />
                   <span>{tutorial.cta}</span>
                 </div>
               </div>
@@ -1083,8 +1308,8 @@ export default function Home() {
               <h3 className="text-xl font-semibold text-white">{landingCopy.trustTitle}</h3>
               <p className="text-sm text-white/70">{landingCopy.trustSubtitle}</p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-2 text-sm font-semibold text-primary">
-              <ShieldCheck size={16} />
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white/80">
+              <ShieldCheck size={16} strokeWidth={1.75} />
               <span>{landingCopy.trustBadge}</span>
             </div>
           </div>
@@ -1095,8 +1320,8 @@ export default function Home() {
               <ul className="space-y-2 text-sm text-white/75">
                 {landingCopy.trustReasons.map((reason) => (
                   <li key={reason} className="flex items-center gap-2">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
-                      <ShieldCheck size={14} />
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/80">
+                      <ShieldCheck size={14} strokeWidth={1.75} />
                     </span>
                     <span>{reason}</span>
                   </li>
@@ -1112,7 +1337,7 @@ export default function Home() {
                     className="rounded-xl border border-white/10 bg-black/30 p-3"
                   >
                     <div className="flex items-start gap-2">
-                      <ArrowRight size={14} className="mt-1 text-primary" />
+                      <ArrowRight size={14} className="mt-1 text-white/70" strokeWidth={1.75} />
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-white">{item.question}</p>
                         <p className="text-sm text-white/70">{item.answer}</p>
@@ -1150,8 +1375,8 @@ export default function Home() {
               key={feature.title}
               className="flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-white/20"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                <feature.icon size={18} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                <feature.icon size={18} strokeWidth={1.75} />
               </div>
               <div>
                 <p className="text-base font-semibold text-white">{feature.title}</p>
@@ -1161,6 +1386,128 @@ export default function Home() {
           ))}
         </section>
       </div>
+
+      {selectedTransaction && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-6 sm:items-center"
+          onClick={() => setSelectedTransaction(null)}
+        >
+          <div
+            className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#0b1224] shadow-2xl shadow-primary/20"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-white/5 bg-white/5 px-5 py-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-white">Transacao concluida</p>
+                <p className="text-xs text-white/70">Comprovante direto, sem complicar.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+                    selectedTransaction.direction === "recebido"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-sky-500/10 text-sky-400"
+                  }`}
+                >
+                  <CheckCircle2 size={20} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTransaction(null)}
+                  className="rounded-full border border-white/10 p-2 text-white transition hover:-translate-y-0.5 hover:border-white/30"
+                  aria-label="Fechar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1 border-b border-white/5 bg-gradient-to-br from-primary/10 via-white/5 to-black/40 px-5 py-4">
+              <p className="text-sm text-white/70">
+                {selectedTransaction.direction === "recebido" ? "Recebimento" : "Envio"}
+              </p>
+              <p className="text-3xl font-bold text-white">
+                {selectedTransaction.asset} {selectedTransaction.amount}
+              </p>
+              <p className="text-sm text-white/60">{selectedTransaction.fiatAmount}</p>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-white">Detalhes da transacao</p>
+                <div className="space-y-2 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white/80">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Tipo</span>
+                    <span className="font-semibold text-white">
+                      {selectedTransaction.direction === "recebido" ? "Recebimento" : "Envio"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Data</span>
+                    <span className="font-semibold text-white">{selectedTransaction.dateFull}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Status</span>
+                    <span className="font-semibold text-white">{selectedTransaction.status}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Rede</span>
+                    <span className="font-semibold text-white">{selectedTransaction.network}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-white">Origem / Destino</p>
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white/80">
+                  <div className="space-y-1">
+                    <p className="text-white/60">Origem</p>
+                    <p className="font-semibold text-white">{selectedTransaction.origin}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-white/60">Destino</p>
+                    <p className="font-semibold text-white">{selectedTransaction.destination}</p>
+                  </div>
+                  <p className="text-[11px] text-white/50">
+                    Nunca mostramos endereco completo aqui. So se o usuario pedir.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-white">Identificador (modo humano)</p>
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                  <div>
+                    <p className="text-xs text-white/60">ID da transacao</p>
+                    <p className="text-sm font-semibold text-white">{getTxIdPreview(selectedTransaction.txId)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyTxId}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/30"
+                  >
+                    <Copy size={16} />
+                    Copiar ID
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-white/5 bg-black/40 px-5 py-4">
+              <a
+                href={selectedTransaction.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:-translate-y-0.5 hover:bg-primary-hover"
+              >
+                Ver na blockchain
+                <ExternalLink size={16} />
+              </a>
+              <p className="text-xs text-white/60">Link oficial para o explorador da rede Base.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

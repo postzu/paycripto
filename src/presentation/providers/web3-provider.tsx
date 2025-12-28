@@ -12,7 +12,6 @@ import {
 } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
-import { defineChain } from 'viem';
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -22,25 +21,7 @@ if (!walletConnectProjectId || walletConnectProjectId === 'demo-project-id') {
     );
 }
 
-// Loopring Testnet (Custom Chain Definition)
-const loopringTestnet = defineChain({
-    id: 5,  // Loopring uses Goerli testnet ID for L2
-    name: 'Loopring Testnet',
-    nativeCurrency: {
-        name: 'Ether',
-        symbol: 'ETH',
-        decimals: 18,
-    },
-    rpcUrls: {
-        default: { http: ['https://goerli.loopring.io/rpc'] },
-    },
-    blockExplorers: {
-        default: { name: 'Loopring Explorer', url: 'https://goerli.explorer.loopring.io' },
-    },
-    testnet: true,
-});
-
-const config = getDefaultConfig({
+export const config = getDefaultConfig({
     appName: 'PayCripto',
     projectId: walletConnectProjectId,
     chains: [
@@ -50,7 +31,6 @@ const config = getDefaultConfig({
         optimismSepolia,      // Optimism Sepolia
         zkSyncSepoliaTestnet, // zkSync Era Sepolia
         bscTestnet,           // BSC Testnet (BNB Smart Chain)
-        loopringTestnet,      // Loopring Testnet
     ],
     ssr: true,
 });

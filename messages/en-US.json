@@ -41,18 +41,41 @@
             "show": "Show balance",
             "conversionNotice": "Estimated conversion in local currency.",
             "tooltip": "Conversion is informational only and can change with the market.",
-            "description": "Total balance (USDT). Estimated conversion in fiat."
+            "description": "Total balance (USDC). Estimated conversion in fiat."
+        },
+        "assetsSection": {
+            "title": "Assets",
+            "conversionLabel": "Estimated conversion in {currency}",
+            "subtitle": "Your tokens across all networks",
+            "connectPrompt": "Connect your wallet to view USDC, ETH and other tokens.",
+            "tooltip": "We only show assets above 1 USDC to keep the view clean.",
+            "loading": "Loading balances across all networks...",
+            "empty": "No assets found above the minimum balance.",
+            "estimatedTotal": "Estimated total",
+            "token": "Token",
+            "value": "Value",
+            "viewExplorer": "View in explorer"
+        },
+        "historySection": {
+            "subtitle": "Recent activity",
+            "empty": "No recent activity yet.",
+            "sample": {
+                "incoming": "Payment received",
+                "outgoing": "Transfer sent",
+                "deposit": "Deposit via PIX"
+            }
         },
         "receive": {
-            "title": "Receive crypto",
+            "title": "Address to receive",
             "subtitle": "Show the QR Code or copy your wallet address.",
             "qrAlt": "Wallet address QR Code",
             "copyLabel": "Or copy the address",
             "copy": "Copy",
-            "copied": "Copied!"
+            "copied": "Copied!",
+            "qrLabel": "Receive"
         },
         "identity": {
-            "title": "Address to receive payments",
+            "title": "Address to receive",
             "subtitle": "Your wallet is your identifier. You get paid directly to it.",
             "helper": "Get paid using your wallet address.",
             "placeholder": "0x0000...0000",
@@ -76,8 +99,8 @@
             "defaultHint": "When sending from another wallet or exchange, always pick the Base network.",
             "defaultBadge": "Default",
             "whyBase": "Why Base?",
-            "whyBaseTitle": "Why use Base network?",
-            "whyBaseDesc": "It confirms almost instantly and costs much less than Ethereum. To avoid errors and extra costs, always use Base to receive.",
+            "whyBaseTitle": "Base",
+            "whyBaseDesc": "Faster and cheaper network. Deposits sent on other networks won't show here.",
             "currentUnknown": "Network not detected",
             "compatibilityNotice": "You are on Base. Deposits on other networks may not show up.",
             "seeSupported": "See supported networks"
@@ -102,7 +125,7 @@
             "examplesHelper": "Pick the route that balances cost and speed for you.",
             "examplesRecommended": {
                 "title": "Simpler and cheaper (recommended)",
-                "route": "PIX -> USDT -> Base",
+                "route": "PIX -> USDC -> Base",
                 "bullets": {
                     "speed": "Arrives in 1-2 minutes",
                     "cost": "Estimated cost: 5-12%",
@@ -141,10 +164,103 @@
             "examplesFeeNotice": "Fees change with time and congestion. Small amounts feel fixed fees more.",
             "examplesClose": "Got it - back"
         },
+        "paymentGroups": {
+            "title": "Payment groups",
+            "subtitleStrong": "Lists ready for batch.",
+            "subtitleHighlight": "Execution happens via dApps on Base.",
+            "helper": "Recurring",
+            "badge": "Ready for batch send",
+            "create": "Create group",
+            "empty": "No groups yet.",
+            "emptyCta": "Start a group",
+            "recipientsCount": "{count, plural, one {# contact} other {# contacts}}",
+            "tokenLabel": "{token} - {network}",
+            "moreRecipients": "+{count} more",
+            "scope": "Prepare lists for recurring payments (CSV).",
+            "actions": {
+                "exportCsv": "Export CSV",
+                "editGroup": "Edit group",
+                "viewTools": "See compatible dApps"
+            },
+            "compatibility": "Batch payouts happen via compatible dApps.",
+            "modal": {
+                "title": "Create group",
+                "editTitle": "Edit group",
+                "subtitle": "Pick existing contacts and set the default token and network.",
+                "name": "Group name",
+                "namePlaceholder": "Ex: Salaries - April",
+                "token": "Default token",
+                "network": "Default network",
+                "peopleTitle": "Add contacts to the group",
+                "peopleHelper": "Same search as Transfer. Checked means included.",
+                "networkHint": "Network: {network}",
+                "noManual": "No manual address, amount, or note.",
+                "selectedCount": "{count, plural, one {# contact selected} other {# contacts selected}}",
+                "searchPlaceholder": "Search contact by name or address",
+                "csvHint": "We export as address,amount. The amount stays blank to fill in the multisend flow.",
+                "noAddress": "Contact without a saved address",
+                "save": "Save group",
+                "saveEdit": "Save changes"
+            },
+            "howToPay": {
+                "title": "Quick instructions",
+                "steps": {
+                    "export": "Export the CSV in PayCrypto",
+                    "open": "Open a multisend dApp",
+                    "connect": "Connect on Base and send"
+                }
+            },
+            "toolsModal": {
+                "appsLabel": "Compatible dApps",
+                "title": "Batch payouts (Base)",
+                "description": "Batch payouts happen via compatible dApps.",
+                "warning": "Connect your wallet to the Base network.",
+                "close": "Close",
+                "open": "Open {app}"
+            },
+            "nextSteps": {
+                "title": "Send batch payments",
+                "exported": "CSV for {group} is ready.",
+                "description": "PayCrypto prepares your lists. Payment execution happens via multisend tools compatible with Base.",
+                "downloadCompleted": "Download completed",
+                "downloadFileName": "File saved as: {filename}",
+                "checklistTitle": "Visual checklist",
+                "checklist": {
+                    "token": "Token: USDC",
+                    "network": "Network: Base",
+                    "format": "Format: address, amount (CSV)",
+                    "wallet": "Wallet: MetaMask / Rabby / WalletConnect"
+                },
+                "warningTitle": "Before you continue:",
+                "warningDescription": "Connect your wallet on the Base network.",
+                "appsTitle": "Choose how to send",
+                "apps": {
+                    "cryptosender": {
+                        "cta": "Use CryptoSender (recommended)",
+                        "helper": "Replacement for enterprise PIX",
+                        "description": "Simple interface. Ideal for payroll and recurring payments."
+                    },
+                    "multisender": {
+                        "cta": "Use MultiSender Classic",
+                        "description": "Advanced tool for experienced users."
+                    }
+                },
+                "quickGuide": {
+                    "cta": "View instructions",
+                    "intro": "",
+                    "stepsTitle": "How it works",
+                    "step1": "Open the multisend dApp",
+                    "step2": "Connect your wallet on the Base network",
+                    "step3": "Upload the CSV exported by PayCrypto",
+                    "closing": ""
+                },
+                "footer": "PayCrypto does not execute batch transactions at this time."
+            }
+        },
         "otherAssets": {
             "lineSuffix": "in other assets (awaiting conversion)",
-            "lineTooltip": "These values are not ready to spend. They stay here while they wait to be converted to USDT.",
-            "lineDisclaimer": "Not added to USDT. Visibility only, not spendable balance.",
+            "lineTooltip": "These values are not ready to spend. They stay here while they wait to be converted to USDC.",
+            "lineDisclaimer": "Not added to USDC. Visibility only, not spendable balance.",
             "assets": {
                 "eth": "ETH",
                 "usdc": "USDC",
@@ -152,15 +268,15 @@
             },
             "modal": {
                 "title": "Assets waiting to convert",
-                "subtitle": "These values are not in USDT yet. They appear here while they wait for conversion.",
+                "subtitle": "These values are not in USDC yet. They appear here while they wait for conversion.",
                 "estimatedTag": "Estimated fiat value",
                 "helper": "We always show estimated value.",
                 "helperSecondary": "No chain, no gas, no technical details.",
-                "primaryCta": "Convert to USDT",
+                "primaryCta": "Convert to USDC",
                 "secondaryCta": "Got it"
             },
             "conversion": {
-                "title": "Convert to USDT",
+                "title": "Convert to USDC",
                 "subtitle": "Choose how to convert your assets. We highlight the lowest-cost option right now.",
                 "recommended": {
                     "pill": "Recommended option",
@@ -217,6 +333,12 @@
         },
         "validation": {
             "invalidAddress": "Invalid address. Make sure it's a valid EVM address."
+        },
+        "suggestions": {
+            "title": "Contact already exists",
+            "helper": "Pick it to add another address instead of duplicating.",
+            "useExisting": "Use contact",
+            "noAddress": "No address saved"
         },
         "fields": {
             "name": "Name",
