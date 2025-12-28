@@ -8,21 +8,40 @@
         "name": "PayCripto",
         "tagline": "Send crypto as easily as PIX."
     },
+    "Locale": {
+        "title": "Language",
+        "active": "Language: {label}",
+        "changeCta": "Change language",
+        "browserMismatch": "Your browser is set to {browserLocale}.",
+        "selectLocale": "Languages",
+        "switch": "Switch to {targetLocale}",
+        "modalTitle": "Interface language",
+        "modalSubtitle": "Choose the interface language.",
+        "switchHint": "Tap to switch instantly.",
+        "current": "Current"
+    },
     "Home": {
         "title": "PayCripto",
         "walletConnected": "Wallet connected",
         "actions": {
             "transfer": "Transfer",
-            "transferHelper": "Send to someone",
+            "transferHelper": "Send to another wallet",
             "receive": "Receive",
-            "receiveHelper": "QR Code or address",
+            "receiveHelper": "QR Code or wallet address",
             "deposit": "Deposit",
-            "depositHelper": "Buy with PIX or card",
+            "depositHelper": "Add funds with PIX or card",
             "history": "History"
         },
         "disconnect": "Disconnect",
         "titles": {
             "sendOrReceive": "Send or receive"
+        },
+        "balance": {
+            "hide": "Hide balance",
+            "show": "Show balance",
+            "conversionNotice": "Estimated conversion in local currency.",
+            "tooltip": "Conversion is informational only and can change with the market.",
+            "description": "Total balance (USDT). Estimated conversion in fiat."
         },
         "receive": {
             "title": "Receive crypto",
@@ -33,7 +52,7 @@
             "copied": "Copied!"
         },
         "network": {
-            "defaultLabel": "Default network",
+            "defaultLabel": "Current network",
             "defaultValue": "Base",
             "defaultMeta": "Base (faster and cheaper)",
             "defaultHint": "When sending from another wallet or exchange, always pick the Base network.",
@@ -41,11 +60,19 @@
             "whyBase": "Why Base?",
             "whyBaseTitle": "Why use Base network?",
             "whyBaseDesc": "It confirms almost instantly and costs much less than Ethereum. To avoid errors and extra costs, always use Base to receive.",
-            "currentUnknown": "Network not detected"
+            "currentUnknown": "Network not detected",
+            "compatibilityNotice": "You are on Base. Deposits on other networks may not show up.",
+            "seeSupported": "See supported networks"
         },
         "deposit": {
-            "title": "Buy crypto with PIX or card",
-            "subtitle": "Use a partner that accepts PIX or card and send the stablecoin to the address below.",
+            "title": "Deposit with PIX or card",
+            "subtitle": "Add funds with PIX or card. It lands in minutes.",
+            "microcopy": "Add funds with PIX or card. It lands in minutes.",
+            "highlights": {
+                "instant": "Instant",
+                "card": "Card",
+                "safe": "Secure"
+            },
             "addressLabel": "Address to receive",
             "networkLabel": "Network",
             "networkValue": "Base",
@@ -56,6 +83,13 @@
                 "buyWithPix": "Crypto purchase apps that accept PIX",
                 "exchangeWithdraw": "Exchanges that allow withdrawals to an external wallet"
             }
+        },
+        "security": {
+            "nonCustodial": "You stay in control. PayCripto never holds your keys.",
+            "unsupportedNetworkTitle": "Unsupported network",
+            "unsupportedNetworkDesc": "To keep funds safe, stay only on the approved test networks: {networks}.",
+            "unsupportedNetworkAdvice": "Switch to Base Sepolia (or another supported testnet) before signing any transaction.",
+            "switchTo": "Switch to {network}"
         }
     },
     "Recipients": {
@@ -77,7 +111,11 @@
         "qr": {
             "scan": "Scan QR Code",
             "reading": "Scanning...",
-            "helper": "Use the camera or a photo to fill the address automatically"
+            "helper": "Use the camera or a photo to fill the address automatically",
+            "invalidAddress": "QR does not contain a valid EVM address"
+        },
+        "validation": {
+            "invalidAddress": "Invalid address. Make sure it's a valid EVM address."
         },
         "fields": {
             "name": "Name",
@@ -102,6 +140,8 @@
         "conversionUnavailable": "Conversion unavailable",
         "confirmAndPay": "Confirm and Pay",
         "continue": "Continue",
-        "editAmount": "Edit amount"
+        "editAmount": "Edit amount",
+        "confirmPrompt": "You are transferring {amount} {asset} to {name}. Confirm send?",
+        "sentStatus": "Transfer sent successfully."
     }
 }

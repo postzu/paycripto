@@ -1,0 +1,147 @@
+{
+    "Common": {
+        "loading": "Cargando...",
+        "error": "Error",
+        "back": "Volver"
+    },
+    "Brand": {
+        "name": "PayCripto",
+        "tagline": "Envia cripto tan facil como PIX."
+    },
+    "Locale": {
+        "title": "Idioma",
+        "active": "Idioma: {label}",
+        "changeCta": "Cambiar idioma",
+        "browserMismatch": "Tu navegador esta en {browserLocale}.",
+        "selectLocale": "Idiomas",
+        "switch": "Cambiar a {targetLocale}",
+        "modalTitle": "Idioma de la interfaz",
+        "modalSubtitle": "Elige el idioma de la interfaz.",
+        "switchHint": "Al tocar ya cambia.",
+        "current": "Actual"
+    },
+    "Home": {
+        "title": "PayCripto",
+        "walletConnected": "Billetera conectada",
+        "actions": {
+            "transfer": "Transferir",
+            "transferHelper": "Enviar a otra billetera",
+            "receive": "Recibir",
+            "receiveHelper": "Codigo QR o direccion de la billetera",
+            "deposit": "Depositar",
+            "depositHelper": "Agregar saldo con PIX o tarjeta",
+            "history": "Historial"
+        },
+        "disconnect": "Desconectar",
+        "titles": {
+            "sendOrReceive": "Enviar o recibir"
+        },
+        "balance": {
+            "hide": "Ocultar saldo",
+            "show": "Mostrar saldo",
+            "conversionNotice": "Conversion estimada en moneda local.",
+            "tooltip": "La conversion es solo informativa y puede variar con el mercado.",
+            "description": "Saldo total (USDT). Conversion estimada en fiat."
+        },
+        "receive": {
+            "title": "Recibir cripto",
+            "subtitle": "Muestra el codigo QR o copia la direccion de tu billetera.",
+            "qrAlt": "Codigo QR de la direccion de la billetera",
+            "copyLabel": "O copia la direccion",
+            "copy": "Copiar",
+            "copied": "Copiado!"
+        },
+        "network": {
+            "defaultLabel": "Red actual",
+            "defaultValue": "Base",
+            "defaultMeta": "Base (mas rapida y barata)",
+            "defaultHint": "Al enviar desde otra billetera o exchange, elige siempre la red Base.",
+            "defaultBadge": "Predeterminada",
+            "whyBase": "Por que Base?",
+            "whyBaseTitle": "Por que usar la red Base?",
+            "whyBaseDesc": "Confirma casi al instante y cuesta mucho menos que Ethereum. Para evitar errores y costos extra, usa siempre la red Base para recibir.",
+            "currentUnknown": "Red no detectada",
+            "compatibilityNotice": "Estas en Base. Los depositos en otras redes pueden no aparecer.",
+            "seeSupported": "Ver redes soportadas"
+        },
+        "deposit": {
+            "title": "Depositar con PIX o tarjeta",
+            "subtitle": "Agrega saldo con PIX o tarjeta. Llega en minutos.",
+            "microcopy": "Agrega saldo con PIX o tarjeta. Llega en minutos.",
+            "highlights": {
+                "instant": "Instantaneo",
+                "card": "Tarjeta",
+                "safe": "Seguro"
+            },
+            "addressLabel": "Direccion para recibir",
+            "networkLabel": "Red",
+            "networkValue": "Base",
+            "openReceive": "Abrir pantalla Recibir",
+            "examplesToggle": "Ver ejemplos",
+            "examplesTitle": "Ejemplos de apps que aceptan PIX y envian a una billetera:",
+            "examples": {
+                "buyWithPix": "Apps de compra de cripto con PIX",
+                "exchangeWithdraw": "Exchanges que permiten retiro a billetera externa"
+            }
+        },
+        "security": {
+            "nonCustodial": "Sigues en control. PayCripto no guarda tus llaves.",
+            "unsupportedNetworkTitle": "Red no soportada",
+            "unsupportedNetworkDesc": "Para proteger fondos, usa solo las testnets autorizadas: {networks}.",
+            "unsupportedNetworkAdvice": "Cambia a Base Sepolia (u otra testnet soportada) antes de firmar cualquier transaccion.",
+            "switchTo": "Cambiar a {network}"
+        }
+    },
+    "Recipients": {
+        "title": "Transferencia cripto",
+        "selectRecipient": "Selecciona destinatario",
+        "searchPlaceholder": "Buscar por nombre o direccion",
+        "new": "Nuevo",
+        "frequentContacts": "Contactos frecuentes",
+        "allContacts": "Todos los contactos",
+        "noRecipients": "No se encontraron destinatarios",
+        "newRecipientTitle": "Agregar destinatario",
+        "saveRecipient": "Guardar destinatario",
+        "addAddress": "Agregar direccion",
+        "addressLabel": "Direccion",
+        "modes": {
+            "newContact": "Nuevo contacto",
+            "newAddress": "Nueva direccion"
+        },
+        "qr": {
+            "scan": "Leer Codigo QR",
+            "reading": "Leyendo...",
+            "helper": "Usa la camara o una imagen para completar la direccion automaticamente",
+            "invalidAddress": "El QR no contiene una direccion EVM valida"
+        },
+        "validation": {
+            "invalidAddress": "Direccion invalida. Asegurate de que sea una direccion EVM valida."
+        },
+        "fields": {
+            "name": "Nombre",
+            "address": "Direccion de la billetera",
+            "existingContact": "Elegir contacto",
+            "label": "Etiqueta (opcional)",
+            "labelPlaceholder": "Ej: Billetera principal",
+            "addressCount": "{count} direcciones guardadas"
+        }
+    },
+    "Send": {
+        "title": "Enviar",
+        "sendCrypto": "Enviar cripto",
+        "to": "Para",
+        "changeRecipient": "Cambiar destinatario",
+        "chooseCrypto": "Elige la cripto",
+        "howMuch": "Cuanto quieres enviar?",
+        "youAreSending": "Estas enviando",
+        "estimatedCost": "Costo estimado",
+        "calculating": "Calculando...",
+        "unableToEstimate": "No se pudo estimar",
+        "conversionUnavailable": "Conversion no disponible",
+        "confirmAndPay": "Confirmar y Pagar",
+        "continue": "Continuar",
+        "editAmount": "Editar monto",
+        "confirmPrompt": "Estas transfiriendo {amount} {asset} a {name}. Confirmar envio?",
+        "sentStatus": "Transferencia enviada con exito."
+    }
+}

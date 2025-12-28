@@ -2,6 +2,7 @@
 export const localeToCurrency: Record<string, { code: string; symbol: string; name: string }> = {
     'pt-BR': { code: 'BRL', symbol: 'R$', name: 'Real' },
     'en-US': { code: 'USD', symbol: '$', name: 'Dollar' },
+    'es-ES': { code: 'EUR', symbol: '€', name: 'Euro' },
 };
 
 // USDT/USDC contract addresses per testnet chain

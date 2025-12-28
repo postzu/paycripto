@@ -1,4 +1,4 @@
-import { isAddress } from 'viem';
+import { getAddress, isAddress } from 'viem';
 
 export interface RecipientProps {
     id: string;
@@ -17,7 +17,7 @@ export class Recipient {
         this.validate(props);
         this.id = props.id;
         this.name = props.name;
-        this.address = props.address;
+        this.address = getAddress(props.address);
         this.userId = props.userId;
     }
 
@@ -26,8 +26,7 @@ export class Recipient {
             throw new Error('Name is required');
         }
 
-        // Simple check for now, can be improved with viem's isAddress for EVM
-        if (!props.address.startsWith('0x') || props.address.length < 42) {
+        if (!isAddress(props.address, { strict: false })) {
             throw new Error('Invalid address format');
         }
     }

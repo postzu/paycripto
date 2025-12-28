@@ -8,21 +8,40 @@
         "name": "PayCripto",
         "tagline": "Envie cripto como se fosse PIX."
     },
+    "Locale": {
+        "title": "Idioma",
+        "active": "Idioma: {label}",
+        "changeCta": "Alterar idioma",
+        "browserMismatch": "Seu navegador esta em {browserLocale}.",
+        "selectLocale": "Idiomas",
+        "switch": "Mudar para {targetLocale}",
+        "modalTitle": "Idioma da interface",
+        "modalSubtitle": "Escolha o idioma da interface.",
+        "switchHint": "Clique troca na hora.",
+        "current": "Atual"
+    },
     "Home": {
         "title": "PayCripto",
         "walletConnected": "Carteira conectada",
         "actions": {
             "transfer": "Transferir",
-            "transferHelper": "Enviar para alguem",
+            "transferHelper": "Enviar para outra carteira",
             "receive": "Receber",
-            "receiveHelper": "QR Code ou endereco",
+            "receiveHelper": "QR Code ou endereco da carteira",
             "deposit": "Depositar",
-            "depositHelper": "Comprar com PIX ou cartao",
+            "depositHelper": "Adicionar saldo com PIX ou cartao",
             "history": "Historico"
         },
         "disconnect": "Desconectar",
         "titles": {
             "sendOrReceive": "Enviar ou receber"
+        },
+        "balance": {
+            "hide": "Ocultar saldo",
+            "show": "Mostrar saldo",
+            "conversionNotice": "Conversao estimada em reais.",
+            "tooltip": "A conversao e apenas informativa; pode variar conforme o mercado.",
+            "description": "Saldo total (USDT). Conversao estimada em reais."
         },
         "receive": {
             "title": "Receber cripto",
@@ -33,7 +52,7 @@
             "copied": "Copiado!"
         },
         "network": {
-            "defaultLabel": "Rede padrao",
+            "defaultLabel": "Rede atual",
             "defaultValue": "Base",
             "defaultMeta": "Base (mais rapida e barata)",
             "defaultHint": "Ao enviar de outra carteira ou exchange, selecione sempre a rede Base.",
@@ -41,11 +60,19 @@
             "whyBase": "Por que Base?",
             "whyBaseTitle": "Por que usar a rede Base?",
             "whyBaseDesc": "Ela confirma quase na hora e tem taxas bem menores que a Ethereum. Para evitar erros e custos extras, use sempre a rede Base para receber.",
-            "currentUnknown": "Rede nao detectada"
+            "currentUnknown": "Rede nao detectada",
+            "compatibilityNotice": "Voce esta na rede Base. Depositos em outras redes podem nao aparecer.",
+            "seeSupported": "Ver redes suportadas"
         },
         "deposit": {
-            "title": "Comprar cripto com PIX ou cartao",
-            "subtitle": "Use um parceiro que aceite PIX ou cartao e envie a stablecoin para o endereco abaixo.",
+            "title": "Depositar com PIX ou cartao",
+            "subtitle": "Adicione saldo com PIX ou cartao. O valor cai em poucos minutos.",
+            "microcopy": "Adicione saldo com PIX ou cartao. O valor cai em poucos minutos.",
+            "highlights": {
+                "instant": "Instantaneo",
+                "card": "Cartao",
+                "safe": "Seguro"
+            },
             "addressLabel": "Endereco para receber",
             "networkLabel": "Rede",
             "networkValue": "Base",
@@ -56,6 +83,13 @@
                 "buyWithPix": "Apps de compra de cripto com PIX",
                 "exchangeWithdraw": "Exchanges que permitem saque para carteira externa"
             }
+        },
+        "security": {
+            "nonCustodial": "Voce continua no controle. O PayCripto nao guarda suas chaves.",
+            "unsupportedNetworkTitle": "Rede nao suportada",
+            "unsupportedNetworkDesc": "Para proteger seus fundos, use apenas as redes de teste autorizadas: {networks}.",
+            "unsupportedNetworkAdvice": "Troque para a Base Sepolia (ou outra testnet suportada) antes de assinar qualquer transacao.",
+            "switchTo": "Trocar para {network}"
         }
     },
     "Recipients": {
@@ -77,7 +111,11 @@
         "qr": {
             "scan": "Ler QR Code",
             "reading": "Lendo...",
-            "helper": "Use a camera ou uma imagem para preencher o endereco automaticamente"
+            "helper": "Use a camera ou uma imagem para preencher o endereco automaticamente",
+            "invalidAddress": "O QR nao contem um endereco EVM valido"
+        },
+        "validation": {
+            "invalidAddress": "Endereco invalido. Confira se e um endereco EVM valido."
         },
         "fields": {
             "name": "Nome",
@@ -102,6 +140,8 @@
         "conversionUnavailable": "Conversao indisponivel",
         "confirmAndPay": "Confirmar e Pagar",
         "continue": "Continuar",
-        "editAmount": "Editar valor"
+        "editAmount": "Editar valor",
+        "confirmPrompt": "Voce esta transferindo {amount} {asset} para {name}. Confirmar envio?",
+        "sentStatus": "Transferencia enviada com sucesso."
     }
 }

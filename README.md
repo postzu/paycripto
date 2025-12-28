@@ -5,10 +5,10 @@ Envios cripto com a fluidez do PIX e identidade clara para quem paga e recebe. E
 ## Visão em 30s
 - Problema: pagar e receber cripto ainda é confuso (endereços longos, redes diferentes, medo de errar).
 - Público: quem já usa PIX e quer a mesma simplicidade para cripto; creators e freelancers que recebem em stablecoins; builders que precisam validar o fluxo de envio.
-- Proposta de valor: identidade PayCripto + fluxo estilo PIX, multilíngue (pt-BR/en-US), focado em testes em testnets.
+- Proposta de valor: identidade PayCripto + fluxo estilo PIX, multilíngue (pt-BR/en-US/es-ES), focado em testes em testnets.
 
 ## MVP (estado atual)
-- Landing e narrativa do produto em `app/page.tsx` (pt-BR) com call-to-action para `/pt-BR/cripto` e `/en-US/cripto`.
+- Landing e narrativa do produto em `app/page.tsx` (pt-BR) com call-to-action para `/pt-BR/cripto`, `/en-US/cripto` e `/es-ES/cripto`.
 - Conexão de carteira via RainbowKit/Wagmi com WalletConnect (testnets: Base Sepolia, Sepolia, Arbitrum/Optimism/zkSync/BSC/Loopring).
 - Saldo e conversão: lê saldo nativo da rede conectada e trata como “USDT de teste”, convertendo via CoinGecko para BRL/USD.
 - Catálogo de destinatários: lista mock carregada no client; UI pronta para múltiplos endereços por contato.
@@ -25,7 +25,7 @@ Envios cripto com a fluidez do PIX e identidade clara para quem paga e recebe. E
 
 ## Pilha e arquitetura rápida
 - Front: Next.js (App Router, TypeScript), Tailwind utility classes, Framer Motion, lucide-react.
-- i18n: `next-intl` com rotas `pt-BR` e `en-US`.
+- i18n: `next-intl` com rotas `pt-BR`, `en-US` e `es-ES`.
 - Web3: RainbowKit + Wagmi + viem com testnets pré-configuradas.
 - Dados: Supabase client pronto (`src/infrastructure/supabase/*`) para salvar/ler `recipients`; hoje a UI usa mock em memória.
 - Estado/async: React Query para requests web3 e dados.
@@ -33,7 +33,7 @@ Envios cripto com a fluidez do PIX e identidade clara para quem paga e recebe. E
 
 ## Estrutura útil
 - `app/page.tsx` — landing e narrativa do produto.
-- `app/[locale]/cripto/page.tsx` — produto principal (pt/en).
+- `app/[locale]/cripto/page.tsx` — produto principal (pt/en/es).
 - `src/presentation/components/cripto/*` — cards, wizard de envio, lista de contatos, scanner/QR.
 - `src/presentation/providers/web3-provider.tsx` — configuração de RainbowKit/Wagmi (testnets + WalletConnect).
 - `src/infrastructure/supabase` — client e repository para contatos.
@@ -74,7 +74,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ## Rotas
 - `/` — landing (pt-BR).  
 - `/pt-BR/cripto` — app em português.  
-- `/en-US/cripto` — app em inglês.
+- `/en-US/cripto` — app em inglês.  
+- `/es-ES/cripto` — app em espanhol.
 
 ## Ideias rápidas de validação
 - Teste com 3–5 usuários gravando tela: mede tempo e erro ao enviar.  

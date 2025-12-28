@@ -14,6 +14,14 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
 import { defineChain } from 'viem';
 
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+
+if (!walletConnectProjectId || walletConnectProjectId === 'demo-project-id') {
+    throw new Error(
+        'Missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID. Configure your own WalletConnect project id to avoid leaking connection metadata.'
+    );
+}
+
 // Loopring Testnet (Custom Chain Definition)
 const loopringTestnet = defineChain({
     id: 5,  // Loopring uses Goerli testnet ID for L2
@@ -34,7 +42,7 @@ const loopringTestnet = defineChain({
 
 const config = getDefaultConfig({
     appName: 'PayCripto',
-    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id',
+    projectId: walletConnectProjectId,
     chains: [
         baseSepolia,          // Base Sepolia
         sepolia,              // Ethereum Sepolia

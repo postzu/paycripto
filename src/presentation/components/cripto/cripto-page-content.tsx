@@ -7,15 +7,34 @@ import { SendWizard } from '@/presentation/components/cripto/send-wizard';
 import { Button } from '@/presentation/components/ui/button';
 import { Card } from '@/presentation/components/ui/card';
 import { Input } from '@/presentation/components/ui/input';
-import { ArrowLeft, ArrowRight, Send, QrCode, Wallet, Copy, Eye, EyeOff, LogOut, X, CreditCard } from 'lucide-react';
-import Image from 'next/image';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    ArrowRight,
+    Copy,
+    CreditCard,
+    Eye,
+    EyeOff,
+    Info,
+    LogOut,
+    QrCode,
+    Send,
+    ShieldCheck,
+    Wallet,
+    X,
+    Zap
+} from 'lucide-react';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations, useLocale } from 'next-intl';
-import { useAccount, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect, useChainId, useSwitchChain } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useUsdtBalance } from '@/presentation/hooks/use-usdt-balance';
 import { RecipientWithAddresses, SelectedRecipient } from '@/presentation/components/cripto/types';
 import QRCode from 'qrcode';
+import { LocaleSwitchNotice } from '@/presentation/components/locale/locale-switcher';
+import { TESTNET_CHAINS } from '@/lib/currency';
+import { getAddress } from 'viem';
 
 type View = 'home' | 'recipients' | 'send' | 'newRecipient';
 type RecipientMode = 'new' | 'existing';
@@ -53,6 +72,10 @@ const INITIAL_RECIPIENTS: RecipientWithAddresses[] = [
         addresses: [{ id: '3a', address: '0x9876543210987654321098765432109876543210', label: 'Carteira' }],
     },
 ];
+
+const ALLOWED_CHAIN_IDS = new Set<number>(Object.values(TESTNET_CHAINS).map((chain) => chain.id));
+const ALLOWED_CHAIN_LIST = Object.values(TESTNET_CHAINS);
+const DEFAULT_CHAIN_ID = TESTNET_CHAINS.baseSepolia.id;
 
 type BaseIconSize = 'sm' | 'md' | 'lg';
 
@@ -102,6 +125,12 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     // Wallet connection
     const { address, isConnected } = useAccount();
     const { disconnect } = useDisconnect();
+    const chainId = useChainId();
+    const { chains: switchableChains, switchChain, isPending: isSwitchingChain } = useSwitchChain();
+    const isAllowedChain = !chainId || ALLOWED_CHAIN_IDS.has(chainId);
+    const networkBlocked = isConnected && !!chainId && !isAllowedChain;
+    const canSwitchChain = Boolean(switchChain);
+    const defaultChainOption = switchableChains.find((chain) => chain.id === DEFAULT_CHAIN_ID);
 
     // USDT balance with fiat conversion
     const { usdtBalance, fiatValue, fiatSymbol, isLoading: isLoadingBalance } = useUsdtBalance(locale);
@@ -113,12 +142,33 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const defaultBadge = t('Home.network.defaultBadge');
     const parsedBalance = Number.parseFloat(usdtBalance || '0');
     const hasBalance = Number.isFinite(parsedBalance) && parsedBalance > 0;
-    const displayBalance = showBalance ? (isLoadingBalance ? '...' : `$ ${usdtBalance}`) : '*****';
+    const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdtBalance) : '*****';
     const showFiatLine = showBalance && !isLoadingBalance;
+    const balanceToggleLabel = showBalance ? t('Home.balance.hide') : t('Home.balance.show');
+    const conversionNotice = t('Home.balance.conversionNotice');
+    const conversionTooltip = t('Home.balance.tooltip');
+    const balanceDescription = t('Home.balance.description');
+    const preventionNotice = t('Home.network.compatibilityNotice');
+    const supportedNetworksLabel = t('Home.network.seeSupported');
+    const depositMicrocopy = t('Home.deposit.microcopy');
+    const nonCustodialMessage = t('Home.security.nonCustodial');
+    const allowedNetworksLabel = useMemo(
+        () => ALLOWED_CHAIN_LIST.map((chain) => chain.name).join(', '),
+        []
+    );
+    const targetChainName = defaultChainOption?.name || defaultNetworkName;
+    const normalizeAddress = (value: string) => {
+        try {
+            return getAddress(value.trim());
+        } catch {
+            return null;
+        }
+    };
     const selectedContact = useMemo(
         () => recipients.find((recipient) => recipient.id === newRecipient.contactId),
         [recipients, newRecipient.contactId]
     );
+    const normalizedFormAddress = normalizeAddress(newRecipient.address);
 
     const createId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -202,6 +252,13 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     }, [isConnected]);
 
     useEffect(() => {
+        if (networkBlocked) {
+            setIsReceiveOpen(false);
+            setIsDepositOpen(false);
+        }
+    }, [networkBlocked]);
+
+    useEffect(() => {
         if (!isDepositOpen) {
             setShowDepositExamples(false);
         }
@@ -219,8 +276,21 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     }, []);
 
     const handleConfirmSend = (data: { asset: string; amount: string; chainId: number }) => {
-        console.log('Sending:', data);
-        alert(`${t('Send.youAreSending')} ${data.amount} ${data.asset}!`);
+        if (networkBlocked) {
+            return;
+        }
+
+        const recipientName = selectedRecipient?.name ?? '';
+        const confirmMessage = t('Send.confirmPrompt', {
+            amount: data.amount,
+            asset: data.asset,
+            name: recipientName,
+        });
+
+        const isConfirmed = typeof window === 'undefined' ? true : window.confirm(confirmMessage);
+        if (!isConfirmed) return;
+
+        alert(t('Send.sentStatus'));
         setView('home');
         setSelectedRecipient(null);
     };
@@ -270,7 +340,12 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
         try {
             const qrText = await decodeQrFromFile(file);
-            setNewRecipient((prev) => ({ ...prev, address: qrText }));
+            const normalized = normalizeAddress(qrText);
+            if (!normalized) {
+                throw new Error(t('Recipients.qr.invalidAddress'));
+            }
+
+            setNewRecipient((prev) => ({ ...prev, address: normalized }));
             setQrStatus({ isReading: false, error: null });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Erro ao ler QR Code.';
@@ -283,11 +358,13 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     };
 
     const handleAddRecipient = () => {
-        const trimmedAddress = newRecipient.address.trim();
+        const normalizedAddress = normalizeAddress(newRecipient.address);
         const trimmedName = newRecipient.name.trim();
-        const addressIsValid = trimmedAddress.startsWith('0x');
 
-        if (!addressIsValid) return;
+        if (!normalizedAddress) {
+            setQrStatus((prev) => ({ ...prev, error: t('Recipients.validation.invalidAddress') }));
+            return;
+        }
 
         if (newRecipient.mode === 'existing') {
             const targetContactId = newRecipient.contactId || recipients[0]?.id;
@@ -298,7 +375,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                     if (recipient.id !== targetContactId) return recipient;
 
                     const label = newRecipient.label || `Carteira ${recipient.addresses.length + 1}`;
-                    const newAddress = { id: createId('addr'), address: trimmedAddress, label };
+                    const newAddress = { id: createId('addr'), address: normalizedAddress, label };
 
                     return { ...recipient, addresses: [...recipient.addresses, newAddress] };
                 })
@@ -307,7 +384,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             if (!trimmedName) return;
 
             const label = newRecipient.label || 'Principal';
-            const newAddress = { id: createId('addr'), address: trimmedAddress, label };
+            const newAddress = { id: createId('addr'), address: normalizedAddress, label };
             const contactId = createId('recipient');
 
             setRecipients((prev) => [
@@ -325,7 +402,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     };
 
     const canSaveRecipient =
-        newRecipient.address.trim().startsWith('0x') &&
+        Boolean(normalizedFormAddress) &&
         (newRecipient.mode === 'new'
             ? newRecipient.name.trim().length > 0
             : Boolean(newRecipient.contactId || recipients[0]));
@@ -338,6 +415,15 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         }
         setView('newRecipient');
     };
+
+    const viewTitle =
+        view === 'home'
+            ? t('Home.title')
+            : view === 'recipients'
+                ? t('Recipients.title')
+                : view === 'send'
+                    ? t('Send.title')
+                    : t('Recipients.newRecipientTitle');
 
     return (
         <div className={`min-h-screen bg-dark text-white font-sans ${isTestnet ? 'pt-10' : ''}`}>
@@ -360,18 +446,72 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             <ArrowLeft size={24} />
                         </button>
                     )}
-                    <h1 className="text-lg font-semibold">
-                        {view === 'home' && t('Home.title')}
-                        {view === 'recipients' && t('Recipients.title')}
-                        {view === 'send' && t('Send.title')}
-                        {view === 'newRecipient' && t('Recipients.newRecipientTitle')}
-                    </h1>
-                    <div className="w-10" />
+                    <div className="flex flex-col items-center justify-center text-center">
+                        <NextImage
+                            src="/logo-appbar.png"
+                            alt={viewTitle}
+                            width={343}
+                            height={88}
+                            className="h-10 w-auto drop-shadow-[0_4px_16px_rgba(0,0,0,0.35)]"
+                            priority
+                        />
+                        {view !== 'home' && (
+                            <span className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
+                                {viewTitle}
+                            </span>
+                        )}
+                    </div>
+                    <div className="w-10" aria-hidden />
                 </div>
             </header>
 
+            <AnimatePresence>
+                {networkBlocked && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                            className="w-full max-w-md rounded-2xl border border-white/10 bg-dark-surface p-6 shadow-2xl space-y-4"
+                        >
+                            <div className="flex items-start gap-3">
+                                <ShieldCheck className="text-primary mt-1" size={20} />
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-semibold">{t('Home.security.unsupportedNetworkTitle')}</h3>
+                                    <p className="text-sm text-white/70">
+                                        {t('Home.security.unsupportedNetworkDesc', { networks: allowedNetworksLabel })}
+                                    </p>
+                                    <p className="text-xs text-white/60">
+                                        {t('Home.security.unsupportedNetworkAdvice')}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <Button
+                                    type="button"
+                                    onClick={() => switchChain?.({ chainId: DEFAULT_CHAIN_ID })}
+                                    isLoading={isSwitchingChain}
+                                    disabled={!canSwitchChain}
+                                >
+                                    {t('Home.security.switchTo', { network: targetChainName })}
+                                </Button>
+                                <Button type="button" variant="secondary" onClick={() => disconnect()}>
+                                    {t('Home.disconnect')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Content */}
-            <main className="max-w-lg mx-auto px-4 py-6">
+            <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
                 <AnimatePresence mode="wait">
                     {/* Home View */}
                     {view === 'home' && (
@@ -391,27 +531,42 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             : 'border-white/10 bg-white/5 p-4'
                                     }`}
                                 >
-                                    <div className="relative z-10 space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-white/80 text-sm font-medium">Saldo total</span>
+                                    <div className="relative z-10 space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="space-y-1">
+                                                <span className="text-white/90 text-sm font-semibold tracking-tight">Saldo total</span>
+                                                <p className="text-[11px] text-white/60">{balanceDescription}</p>
+                                            </div>
                                             <button
                                                 onClick={() => setShowBalance(!showBalance)}
                                                 className="p-2 -mr-2 rounded-full text-white/70 hover:bg-white/10 transition-colors"
-                                                aria-label="Alternar visibilidade do saldo"
+                                                aria-label={balanceToggleLabel}
+                                                title={balanceToggleLabel}
                                             >
                                                 {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
                                             </button>
                                         </div>
                                         <div className="flex items-baseline gap-2">
-                                            <span className={`${hasBalance ? 'text-3xl' : 'text-2xl'} font-bold text-white`}>
-                                                {displayBalance}
-                                            </span>
-                                            <span className={`${hasBalance ? 'text-lg' : 'text-base'} text-white/70`}>USDT</span>
+                                            <div className="flex items-baseline gap-1">
+                                                {showBalance && <span className="text-xl font-semibold text-white/80">$</span>}
+                                                <span className={`${hasBalance ? 'text-4xl' : 'text-3xl'} font-bold text-white tracking-tight`}>
+                                                    {balanceValue}
+                                                </span>
+                                            </div>
+                                            <span className="text-sm font-semibold text-white/70">USDT</span>
                                         </div>
                                         {showFiatLine && (
-                                            <span className="block text-xs text-white/60">
-                                                ~ {fiatSymbol} {fiatValue}
-                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+                                                <span>~ {fiatSymbol} {fiatValue}</span>
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Info
+                                                        size={14}
+                                                        className="text-white/50"
+                                                        aria-label={conversionTooltip}
+                                                    />
+                                                    <span className="hidden sm:inline">{conversionNotice}</span>
+                                                </span>
+                                            </div>
                                         )}
                                         {hasBalance && (
                                             <div className="pt-1 flex items-center gap-2 text-white/70 text-sm">
@@ -445,26 +600,58 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             {/* Quick Actions (PIX Style) */}
                             <div className="space-y-3">
                                 <Card
-                                    className={`flex items-center justify-between gap-3 border border-primary/40 bg-primary/15 p-5 transition-colors ${
+                                    className={`flex flex-col gap-3 border border-primary/40 bg-primary/15 p-5 transition-colors ${
                                         isConnected ? 'hover:bg-primary/20 cursor-pointer' : 'opacity-60 cursor-not-allowed'
                                     }`}
-                                    onClick={() => isConnected && setIsReceiveOpen(true)}
+                                    onClick={() => isConnected && setIsDepositOpen(true)}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/30">
-                                            <QrCode size={26} />
+                                            <CreditCard size={26} />
                                         </div>
                                         <div className="flex flex-col items-start gap-0.5">
                                             <span className="text-base font-semibold text-white">
-                                                {t('Home.actions.receive')}
+                                                {t('Home.actions.deposit')}
                                             </span>
-                                            <span className="text-xs text-white/80">{t('Home.actions.receiveHelper')}</span>
+                                            <span className="text-xs text-white/80">{t('Home.actions.depositHelper')}</span>
                                         </div>
+                                        <ArrowRight size={18} className="ml-auto text-white/80" />
                                     </div>
-                                    <ArrowRight size={18} className="text-white/80" />
+                                    <p className="text-xs text-white/80">{depositMicrocopy}</p>
+                                    <div className="flex flex-wrap gap-2 text-[11px] text-white/90">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
+                                            <Zap size={14} />
+                                            {t('Home.deposit.highlights.instant')}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
+                                            <CreditCard size={14} />
+                                            {t('Home.deposit.highlights.card')}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1">
+                                            <ShieldCheck size={14} />
+                                            {t('Home.deposit.highlights.safe')}
+                                        </span>
+                                    </div>
                                 </Card>
 
                                 <div className="grid grid-cols-2 gap-3">
+                                    <Card
+                                        className={`flex flex-col items-start gap-2 p-5 border border-white/5 bg-dark-surface ${
+                                            isConnected ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                                        }`}
+                                        onClick={() => isConnected && setIsReceiveOpen(true)}
+                                    >
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-white">
+                                            <QrCode size={22} />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <span className="text-sm font-semibold text-white">
+                                                {t('Home.actions.receive')}
+                                            </span>
+                                            <p className="text-xs text-white/60">{t('Home.actions.receiveHelper')}</p>
+                                        </div>
+                                    </Card>
+
                                     <Card
                                         className={`flex flex-col items-start gap-2 p-5 border border-white/5 bg-dark-surface ${
                                             isConnected ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60 cursor-not-allowed'
@@ -481,29 +668,12 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             <p className="text-xs text-white/60">{t('Home.actions.transferHelper')}</p>
                                         </div>
                                     </Card>
-
-                                    <Card
-                                        className={`flex flex-col items-start gap-2 p-5 border border-white/5 bg-dark-surface ${
-                                            isConnected ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                                        }`}
-                                        onClick={() => isConnected && setIsDepositOpen(true)}
-                                    >
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-white">
-                                            <CreditCard size={22} />
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            <span className="text-sm font-semibold text-white">
-                                                {t('Home.actions.deposit')}
-                                            </span>
-                                            <p className="text-xs text-white/60">{t('Home.actions.depositHelper')}</p>
-                                        </div>
-                                    </Card>
                                 </div>
                             </div>
 
                             {/* Connected Wallet */}
                             {isConnected && (
-                                <Card className="p-4 bg-dark-surface/80 border border-white/10">
+                                <Card className="p-4 bg-white/[0.04] border border-white/5">
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             <span className="h-2.5 w-2.5 rounded-full bg-success shadow-[0_0_0_6px_rgba(34,197,94,0.15)]" />
@@ -513,8 +683,31 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-white/70">
-                                            <span className="text-white/60">{t('Home.network.defaultLabel')}</span>
+                                            <span className="text-white/60">{t('Home.network.defaultLabel')}:</span>
                                             <span className="text-sm font-semibold text-white">{defaultNetworkName}</span>
+                                        </div>
+                                    </div>
+                                    <p className="mt-2 flex items-center gap-2 text-xs text-white/70">
+                                        <ShieldCheck size={14} className="text-success" />
+                                        <span>{nonCustodialMessage}</span>
+                                    </p>
+                                    <div className="mt-3 flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs text-white/70">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-amber-200">
+                                            <AlertTriangle size={16} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="leading-relaxed">{preventionNotice}</p>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-[11px] font-semibold text-white/80 hover:text-white"
+                                                    onClick={() => setShowWhyBase(true)}
+                                                >
+                                                    {supportedNetworksLabel}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="mt-3 flex items-center justify-end gap-2">
@@ -532,7 +725,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            className="text-xs text-white/70 hover:text-white"
+                                            className="text-xs text-white/60 bg-white/5 hover:text-white hover:bg-white/10"
                                             onClick={() => disconnect()}
                                         >
                                             <LogOut size={16} className="mr-1" />
@@ -616,7 +809,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 {t('Recipients.fields.existingContact')}
                                             </label>
                                             <select
-                                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 [&>option]:text-slate-900 [&>option]:bg-white"
                                                 value={newRecipient.contactId || recipients[0]?.id}
                                                 onChange={(e) =>
                                                     setNewRecipient({
@@ -679,6 +872,9 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             </Button>
                                         </div>
                                         <p className="text-xs text-white/50">{t('Recipients.qr.helper')}</p>
+                                        {!normalizedFormAddress && newRecipient.address.trim() !== '' && (
+                                            <p className="text-xs text-error">{t('Recipients.validation.invalidAddress')}</p>
+                                        )}
                                         {qrStatus.error && <p className="text-sm text-error">{qrStatus.error}</p>}
                                     </div>
                                 </div>
@@ -704,6 +900,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                         </motion.div>
                     )}
                 </AnimatePresence>
+                <LocaleSwitchNotice />
             </main>
 
             <AnimatePresence>
@@ -738,7 +935,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <div className="mt-2 flex justify-center">
                                     {qrCodeDataUrl ? (
                                         <div className="rounded-2xl bg-white p-3 shadow-lg">
-                                            <Image
+                                            <NextImage
                                                 src={qrCodeDataUrl}
                                                 alt={t('Home.receive.qrAlt')}
                                                 width={208}
@@ -796,10 +993,11 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 className="text-xs"
                                                 onClick={() => setShowWhyBase(true)}
                                             >
-                                                {t('Home.network.whyBase')}
+                                                {supportedNetworksLabel}
                                             </Button>
                                         </div>
                                         <p className="text-xs text-white/70">{t('Home.network.defaultHint')}</p>
+                                        <p className="text-xs text-white/70">{preventionNotice}</p>
                                     </div>
                                 </div>
                             </div>
@@ -833,9 +1031,23 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <X size={18} />
                             </button>
 
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 <h3 className="text-lg font-semibold">{t('Home.deposit.title')}</h3>
                                 <p className="text-sm text-white/60">{t('Home.deposit.subtitle')}</p>
+                                <div className="flex flex-wrap gap-2 text-xs text-white/80">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                                        <Zap size={14} />
+                                        {t('Home.deposit.highlights.instant')}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                                        <CreditCard size={14} />
+                                        {t('Home.deposit.highlights.card')}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                                        <ShieldCheck size={14} />
+                                        {t('Home.deposit.highlights.safe')}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
@@ -887,17 +1099,26 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             <span className="text-[11px] text-white/70">{defaultNetworkMeta}</span>
                                         </div>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs"
-                                        onClick={() => setShowWhyBase(true)}
-                                    >
-                                        {t('Home.network.whyBase')}
+                                    <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => setShowWhyBase(true)}>
+                                        {supportedNetworksLabel}
                                     </Button>
                                 </div>
                                 <p className="text-xs text-white/70">{t('Home.network.defaultHint')}</p>
+                                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-50">
+                                    <AlertTriangle size={14} className="mt-0.5" />
+                                    <div className="space-y-1">
+                                        <p className="leading-relaxed text-amber-50">{preventionNotice}</p>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-[11px] font-semibold text-amber-50 hover:text-white"
+                                            onClick={() => setShowWhyBase(true)}
+                                        >
+                                            {supportedNetworksLabel}
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
