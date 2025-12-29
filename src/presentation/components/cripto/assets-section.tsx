@@ -12,7 +12,7 @@ import {
     baseSepolia
 } from 'viem/chains';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink, Coins } from 'lucide-react';
 import { TESTNET_CHAINS, USDC_CONTRACTS, fetchAssetPrice, fetchUsdcPrice, localeToCurrency } from '@/lib/currency';
 
 const CHAIN_MAP: Record<number, Chain> = {
@@ -41,12 +41,16 @@ type NetworkAssets = {
 
 interface AssetsSectionProps {
     address?: `0x${string}`;
+    preview?: boolean;
 }
 
-export function AssetsSection({ address }: AssetsSectionProps) {
+const MIN_USDC_VALUE = 1;
+
+export function AssetsSection({ address, preview = false }: AssetsSectionProps) {
     const t = useTranslations('Home.assetsSection');
     const locale = useLocale();
     const fiatInfo = localeToCurrency[locale as string] || localeToCurrency['en-US'];
+    const isPreview = preview && !address;
 
     const [networkAssets, setNetworkAssets] = useState<NetworkAssets[]>([]);
     const [prices, setPrices] = useState<{ [symbol: string]: number }>({ ETH: 0, BNB: 0, USDC: 1 });
@@ -54,6 +58,23 @@ export function AssetsSection({ address }: AssetsSectionProps) {
     const [expandedChainId, setExpandedChainId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [isSectionExpanded, setIsSectionExpanded] = useState(false);
+    const previewAssets = useMemo<NetworkAssets[]>(() => {
+        const baseChain = TESTNET_CHAINS.base;
+        if (!baseChain) return [];
+
+        return [
+            {
+                chainId: baseChain.id,
+                chainName: baseChain.name,
+                chainIcon: baseChain.icon,
+                totalValueUsdc: 970,
+                assets: [
+                    { symbol: 'USDC', balance: 520, valueUsdc: 520, iconColor: 'bg-white/30' },
+                    { symbol: 'ETH', balance: 0.15, valueUsdc: 450, iconColor: 'bg-white/30' },
+                ],
+            },
+        ];
+    }, []);
 
     // Fetch Prices once
     useEffect(() => {
@@ -75,7 +96,7 @@ export function AssetsSection({ address }: AssetsSectionProps) {
 
     // Fetch Balances
     useEffect(() => {
-        if (!address) return;
+        if (!address || isPreview) return;
 
         const fetchBalances = async () => {
             setLoading(true);
@@ -147,7 +168,7 @@ export function AssetsSection({ address }: AssetsSectionProps) {
                     // We keep the asset if it contributes, but the requirement says "Mostramos apenas ativos com valor acima de 1 USDC"
                     // However, we still want to show the network if TOTAL is > 0? Or strictly per token?
                     // User Rule: "Filtro >= 1 USDC". Assuming per token or total. Let's filter tokens < 1 USDC.
-                    const filteredAssets = assets.filter(a => a.valueUsdc >= 1);
+                    const filteredAssets = assets.filter(a => a.valueUsdc >= MIN_USDC_VALUE);
                     const filteredTotal = filteredAssets.reduce((acc, curr) => acc + curr.valueUsdc, 0);
 
                     if (filteredTotal > 0) {
@@ -184,9 +205,10 @@ export function AssetsSection({ address }: AssetsSectionProps) {
     const formatCurrencyFiat = (val: number) =>
         new Intl.NumberFormat(locale, { style: 'currency', currency: fiatInfo.code }).format(val);
 
+    const activeAssets = isPreview ? previewAssets : networkAssets;
     const totalAssetsUsdc = useMemo(
-        () => networkAssets.reduce((acc, network) => acc + network.totalValueUsdc, 0),
-        [networkAssets]
+        () => activeAssets.reduce((acc, network) => acc + network.totalValueUsdc, 0),
+        [activeAssets]
     );
 
     const totalAssetsFiat = useMemo(
@@ -204,6 +226,7 @@ export function AssetsSection({ address }: AssetsSectionProps) {
     const conversionLabel = t('conversionLabel', { currency: fiatInfo.name });
 
     const handleToggleSection = () => {
+        if (isPreview) return;
         setIsSectionExpanded((prev) => {
             const next = !prev;
             if (!next) {
@@ -213,7 +236,7 @@ export function AssetsSection({ address }: AssetsSectionProps) {
         });
     };
 
-    if (!address) return null; // Don't show if not connected
+    if (!address && !isPreview) return null; // Don't show if not connected
 
     return (
         <div className="space-y-4">
@@ -221,16 +244,22 @@ export function AssetsSection({ address }: AssetsSectionProps) {
             {/* Header */}
             <button
                 onClick={handleToggleSection}
-                className={`w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg ${isSectionExpanded ? 'bg-white/5' : 'hover:bg-white/5'
+                disabled={isPreview}
+                className={`w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg ${isPreview ? 'opacity-70 cursor-not-allowed' : isSectionExpanded ? 'bg-white/5' : 'hover:bg-white/5'
                     }`}
             >
                 <div className="space-y-1 text-left">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-white/90 text-sm font-medium">{t('title')}</h2>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/60">
-                            {conversionLabel}:
-                            <span className="text-white/80">{fiatDisplay}</span>
-                        </span>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center justify-center rounded-full bg-white/10 h-10 w-10 text-white">
+                            <Coins size={20} strokeWidth={2} />
+                        </div>
+                        <div className="flex flex-col">
+                            <h2 className="text-white/90 text-sm font-medium">{t('title')}</h2>
+                            <span className="inline-flex items-center gap-1 rounded-full text-[10px] font-medium text-white/50">
+                                {conversionLabel}:
+                                <span className="text-white/80">{fiatDisplay}</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className={`p-1 rounded-full transition-colors`}>
@@ -253,23 +282,24 @@ export function AssetsSection({ address }: AssetsSectionProps) {
                         className="overflow-hidden"
                     >
                         <div className="space-y-2">
-                            {loading && networkAssets.length === 0 ? (
+                            {loading && !isPreview && activeAssets.length === 0 ? (
                                 <div className="text-center py-4 text-xs text-white/30 animate-pulse">
                                     {t('loading')}
                                 </div>
-                            ) : networkAssets.length === 0 ? (
+                            ) : activeAssets.length === 0 ? (
                                 <div className="p-4 rounded-xl border border-dashed border-white/10 text-center">
-                                    <p className="text-xs text-white/40">{t('empty')}</p>
+                                    <p className="text-xs text-white/40">{t('empty', { min: MIN_USDC_VALUE })}</p>
                                 </div>
                             ) : (
-                                networkAssets.map((network) => (
+                                activeAssets.map((network) => (
                                     <div
                                         key={network.chainId}
                                         className="overflow-hidden rounded-xl border border-white/5 bg-white/5"
                                     >
                                         <button
-                                            onClick={() => setExpandedChainId(expandedChainId === network.chainId ? null : network.chainId)}
-                                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                                            onClick={() => !isPreview && setExpandedChainId(expandedChainId === network.chainId ? null : network.chainId)}
+                                            disabled={isPreview}
+                                            className={`w-full flex items-center justify-between p-4 transition-colors ${isPreview ? 'opacity-70 cursor-not-allowed' : 'hover:bg-white/5'}`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <span className="text-lg">{network.chainIcon}</span>
@@ -321,16 +351,18 @@ export function AssetsSection({ address }: AssetsSectionProps) {
                                                         ))}
 
                                                         {/* Example "View Explorer" link */}
-                                                        <div className="pt-2 flex justify-end">
-                                                            <a
-                                                                href={`${CHAIN_MAP[network.chainId]?.blockExplorers?.default.url}/address/${address}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1 text-[10px] text-white/40 hover:text-white/60 transition-colors"
-                                                            >
-                                                                {t('viewExplorer')} <ExternalLink size={10} strokeWidth={1.75} />
-                                                            </a>
-                                                        </div>
+                                                        {address ? (
+                                                            <div className="pt-2 flex justify-end">
+                                                                <a
+                                                                    href={`${CHAIN_MAP[network.chainId]?.blockExplorers?.default.url}/address/${address}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-[10px] text-white/40 hover:text-white/60 transition-colors"
+                                                                >
+                                                                    {t('viewExplorer')} <ExternalLink size={10} strokeWidth={1.75} />
+                                                                </a>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 </motion.div>
                                             )}

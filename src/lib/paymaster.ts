@@ -2,7 +2,7 @@ import { createSmartAccountClient } from "permissionless";
 import { toSimpleSmartAccount } from "permissionless/accounts";
 import { createPaymasterClient } from "viem/account-abstraction";
 import { http, createPublicClient, WalletClient } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
 // Environment variables
 const paymasterUrl = process.env.NEXT_PUBLIC_CIRCLE_PAYMASTER_URL;
@@ -39,14 +39,14 @@ export const createSmartWalletClient = async (
     // Create the Smart Account Client
     const smartAccountClient = createSmartAccountClient({
         account: simpleAccount,
-        chain: baseSepolia,
+        chain: base,
         bundlerTransport: http(bundlerUrl),
         paymaster: paymasterClient,
         userOperation: {
             estimateFeesPerGas: async () => {
                 const bundlerClient = createPublicClient({
                     transport: http(bundlerUrl),
-                    chain: baseSepolia
+                    chain: base
                 });
                 return await bundlerClient.estimateFeesPerGas();
             }

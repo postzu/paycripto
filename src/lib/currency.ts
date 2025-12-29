@@ -8,22 +8,12 @@ export const localeToCurrency: Record<string, { code: string; symbol: string; na
 // USDT/USDC contract addresses per testnet chain
 // Note: Most testnets don't have official USDT, using mock/test tokens
 export const USDC_CONTRACTS: Record<number, `0x${string}` | null> = {
-    11155111: null,  // Sepolia
-    421614: null,    // Arbitrum Sepolia
-    11155420: null,  // Optimism Sepolia
-    300: null,       // zkSync Era Sepolia
-    97: null,        // BSC Testnet
-    84532: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia (Circle USDC)
+    8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base Mainnet (Circle USDC)
 };
 
 // Testnet chain configurations
 export const TESTNET_CHAINS: Record<string, { id: number; name: string; icon: string; nativeSymbol: string }> = {
-    sepolia: { id: 11155111, name: 'Sepolia', icon: '🟣', nativeSymbol: 'ETH' },
-    arbitrumSepolia: { id: 421614, name: 'Arbitrum Sepolia', icon: '🌀', nativeSymbol: 'ETH' },
-    optimismSepolia: { id: 11155420, name: 'Optimism Sepolia', icon: '🔴', nativeSymbol: 'ETH' },
-    zkSyncSepolia: { id: 300, name: 'zkSync Era', icon: '⚡', nativeSymbol: 'ETH' },
-    bscTestnet: { id: 97, name: 'BSC Testnet', icon: '🟡', nativeSymbol: 'BNB' },
-    baseSepolia: { id: 84532, name: 'Base Sepolia', icon: '🟦', nativeSymbol: 'ETH' },
+    base: { id: 8453, name: 'Base', icon: '🟦', nativeSymbol: 'ETH' },
 };
 
 const ASSET_PRICE_IDS: Record<string, { id: string; fallback: number }> = {
@@ -38,6 +28,8 @@ export async function fetchUsdcPrice(fiatCode: string): Promise<number> {
         const response = await fetch(
             `/api/prices?ids=usd-coin&vs_currencies=${fiatCode.toLowerCase()}`
         );
+        if (!response.ok) return fiatCode === 'BRL' ? 6.0 : 1.0;
+
         const data = await response.json();
         return data['usd-coin']?.[fiatCode.toLowerCase()] || 1;
     } catch (error) {
@@ -58,10 +50,39 @@ export async function fetchAssetPrice(assetSymbol: string, fiatCode: string): Pr
         const response = await fetch(
             `/api/prices?ids=${asset.id}&vs_currencies=${fiatCode.toLowerCase()}`
         );
+        if (!response.ok) return asset.fallback;
+
         const data = await response.json();
         return data[asset.id]?.[fiatCode.toLowerCase()] || asset.fallback;
     } catch (error) {
         console.error(`Failed to fetch ${assetSymbol} price:`, error);
+        return asset.fallback;
+    }
+}
+
+// Fetch historical asset price for a specific date (dd-mm-yyyy)
+export async function fetchHistoricalAssetPrice(assetSymbol: string, fiatCode: string, date: string): Promise<number> {
+    const asset = ASSET_PRICE_IDS[assetSymbol];
+    if (!asset) {
+        return 1;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/prices?ids=${asset.id}&vs_currencies=${fiatCode.toLowerCase()}&date=${date}`
+        );
+
+        if (!response.ok) return asset.fallback;
+
+        const data = await response.json();
+        const price = data[asset.id]?.[fiatCode.toLowerCase()];
+
+        // Log for debugging since historical data can be tricky
+        console.log(`Historical price for ${assetSymbol} on ${date}: ${price} ${fiatCode}`);
+
+        return price || asset.fallback;
+    } catch (error) {
+        console.error(`Failed to fetch historical ${assetSymbol} price:`, error);
         return asset.fallback;
     }
 }

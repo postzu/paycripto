@@ -59,9 +59,19 @@ Crie `.env.local` com:
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=seu-project-id
 NEXT_PUBLIC_SUPABASE_URL=https://...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_CIRCLE_PAYMASTER_URL=https://ppay.circle.com/paymaster/base-sepolia
+NEXT_PUBLIC_BUNDLER_URL=https://api.stackup.sh/v2/base-sepolia/rpc
 ```
 - WalletConnect é necessário para abrir o modal de conexão.
 - Supabase é opcional; sem ele, os contatos ficam apenas em memória.
+- Os dois URLs acima apontam para Base Sepolia (testnet). Não misture com mainnet sem ajustar o entry point/chain em `src/lib/paymaster.ts`.
+
+Para manter segredos (por exemplo, `CIRCLE_API_KEY` e `NEXT_CIRCLE_CLIENT_KEY`) fora do bundle do navegador, crie `.env.backend` e adicione:
+```
+CIRCLE_API_KEY=...
+NEXT_CIRCLE_CLIENT_KEY=...
+```
+O Next carrega esse arquivo no servidor (veja `next.config.ts`) e expõe apenas os `NEXT_PUBLIC_*` no cliente. Esse arquivo nunca deve ir para o Git.
 
 ## Como rodar
 1) Node 18.17+ (recomendado 20).  

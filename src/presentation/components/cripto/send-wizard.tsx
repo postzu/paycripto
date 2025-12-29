@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { Coins, Wallet, AlertCircle } from 'lucide-react';
+import { Coins, Wallet, AlertCircle, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { fetchAssetPrice, localeToCurrency } from '@/lib/currency';
 import { SelectedRecipient } from './types';
-import { useWalletClient, usePublicClient } from 'wagmi';
+import { usePublicClient } from 'wagmi';
+import { sendUsdcOnBase } from '@/lib/sendUsdcBase';
+import { translateWeb3Error, FriendlyError } from '@/lib/web3-errors';
 
 // Supported assets mock
 const ASSETS = [
@@ -23,25 +25,27 @@ const NETWORKS: Record<number, { name: string; icon: string }> = {
     11155420: { name: 'Optimism', icon: 'OPT' },
     300: { name: 'zkSync Era', icon: 'ZK' },
     97: { name: 'BSC', icon: 'BSC' },
-    84532: { name: 'Base', icon: 'BASE' },
+    8453: { name: 'Base', icon: 'BASE' },
 };
 
-const DEFAULT_CHAIN_ID = 84532;
+const DEFAULT_CHAIN_ID = 8453;
 // const FALLBACK_CHAINS = [421614, 11155420, 300];
 
 interface SendWizardProps {
     recipient: SelectedRecipient;
     onBack: () => void;
     onConfirm: (data: { asset: string; amount: string; chainId: number }) => void;
+    initialAsset?: string;
+    initialAmount?: string;
 }
 
-export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
+export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initialAmount }: SendWizardProps) {
     const t = useTranslations('Send');
     const locale = useLocale();
     const fiatInfo = localeToCurrency[locale] || localeToCurrency['en-US'];
     const [step, setStep] = useState<'asset' | 'amount' | 'confirm'>('amount');
-    const [selectedAsset, setSelectedAsset] = useState<string>('USDC');
-    const [amount, setAmount] = useState('');
+    const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset || 'USDC');
+    const [amount, setAmount] = useState(initialAmount || '');
     const [isEstimating, setIsEstimating] = useState(false);
     const [feeEstimate, setFeeEstimate] = useState<{
         chainId: number;
@@ -54,6 +58,9 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
     const [feeFiatRate, setFeeFiatRate] = useState<number | null>(null);
     const [isLoadingFeeRate, setIsLoadingFeeRate] = useState(false);
     const [feeRateError, setFeeRateError] = useState<string | null>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [txHash, setTxHash] = useState<string | null>(null);
+    const [sendError, setSendError] = useState<FriendlyError | null>(null);
 
     const selectedAssetData = ASSETS.find((a) => a.symbol === selectedAsset);
     const shortRecipientAddress = `${recipient.address.slice(0, 6)}...${recipient.address.slice(-4)}`;
@@ -133,7 +140,6 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
         };
     }, [fiatInfo.code]);
 
-    const { data: walletClient } = useWalletClient();
     const publicClient = usePublicClient();
 
     const estimateFee = async () => {
@@ -143,88 +149,42 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
         try {
             if (!selectedAsset) throw new Error('No asset selected');
 
-            // Default to Base Sepolia for Paymaster
             const chainId = DEFAULT_CHAIN_ID;
 
-            if (!walletClient || !publicClient) {
-                // Fallback simulation if no wallet
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                const mockFee = (Math.random() * 0.001 + 0.0001).toFixed(6);
-                setFeeEstimate({ chainId, fee: mockFee });
+            if (!publicClient) {
+                // Fallback simulation if no public client
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                // Base has very low fees, typically < $0.01
+                setFeeEstimate({ chainId, fee: '0.001' });
                 return;
             }
 
-            // Import dynamically to avoid SSR issues or circular deps
-            const { createSmartWalletClient } = await import('@/lib/paymaster');
-            const { smartAccountClient } = await createSmartWalletClient(walletClient, publicClient);
-
-            // Estimate UserOperation Gas
-            // Note: In a real app, we would construct the actual `callData` here (ERC20 transfer or ETH transfer).
-            // For estimation purposes, we can simulate a simple transfer to the recipient.
-            // Estimate UserOperation Gas
-            // Note: In a real app, we would construct the actual `callData` here (ERC20 transfer or ETH transfer).
-            // For estimation purposes, we can simulate a simple transfer to the recipient.
-
-            // Proceed to real estimation directly structure
-            // Circle Paymaster response usually includes the cost effectively if we were paying in gas tokens.
-
-            // If we are here, paymaster is willing to sponsor or accepts the token.
-            // Circle Paymaster response usually includes the cost effectively if we were paying in gas tokens, 
-            // but for "Pay in USDC", the Paymaster handles the swap or charges the user.
-            // To display "Gas in USDC", we can calculate the usage.
-
-            // For this UI demo, if using Paymaster, we might show 0 fee (sponsored) or the USDC equivalent.
-            // The prompt says "desconta o gas em USDC".
-            // We'll calculate the estimated cost in USDC.
-            // Currently, permissionless returns gas values.
-
+            // Simple gas estimation for ERC-20 transfer on Base
+            // ERC-20 transfers typically use ~65,000 gas
+            const estimatedGas = BigInt(65000);
             const gasPrice = await publicClient.getGasPrice();
-            // This is a rough estimate: (callGas + verificationGas + preVerificationGas) * gasPrice
-            // Real UserOp gas estimation is more complex (verificationGasLimit, etc provided by bundler)
-            // But let's use the 'fee' from the mock for now as '0.00' if sponsored, or a real value if we can calculate.
+            const feeInWei = estimatedGas * gasPrice;
 
-            // Let's stick to the prompt image: it implies the user PAYS.
-            // We will calculate a small fee based on gasPrice and simulated gas limit of ~100k for SC logic.
-            // const estimatedGas = 150000n;
-            // const feeInWei = estimatedGas * gasPrice;
-            // Convert to USDC (assuming 18 decimals for ETH, but we need price of ETH/USDC)
-            // This is getting complex for a frontend estimate without an oracle here.
+            // Convert ETH fee to USD
+            // Base has very low fees, so this will be a small amount
+            try {
+                const { fetchAssetPrice } = await import('@/lib/currency');
+                const ethPrice = await fetchAssetPrice('ETH', 'USD');
+                const feeInUsd = (Number(feeInWei) / 1e18) * ethPrice;
 
-            // SIMPLIFICATION:
-            // Since we are using Circle Paymaster, and the prompt implies "Paymaster logic",
-            // We will simulate the fee calculation BUT clearly label it comes from the Paymaster context if possible.
-            // OR we just perform the real UserOp estimation call.
-
-            // Let's assume the Paymaster *sponsors* for now (Gasless) as that's 90% of Paymaster use cases on Base testnet,
-            // OR if the user really wants "Pay in USDC", we would need a Token Paymaster setup which is more involved (approvals etc).
-            // Given the complexity of "checking if token paymaster is available" vs "sponsorship",
-            // I will implement the Real Estimation call via the bundler.
-
-            const userOp = await smartAccountClient.prepareUserOperation({
-                callData: '0x', // Empty call
-            });
-
-            // If successful, we have gas limits.
-            const totalGas = userOp.callGasLimit + userOp.verificationGasLimit + userOp.preVerificationGas;
-            const feeInEth = totalGas * gasPrice;
-
-            // We need to convert this ETH cost to USDC to show "Gas in USDC".
-            // We have `assetPrice` (selected Asset price). If selected is USDC, we can use it.
-            // If selected is ETH, we need ETH price. 
-            // `fetchAssetPrice` helper handles this.
-            const ethPrice = await import('@/lib/currency').then(m => m.fetchAssetPrice('ETH', 'USD'));
-            const feeInUsdc = (Number(feeInEth) / 1e18) * ethPrice;
-
-            setFeeEstimate({
-                chainId,
-                fee: feeInUsdc.toFixed(4)
-            });
+                setFeeEstimate({
+                    chainId,
+                    fee: feeInUsd < 0.0001 ? '< 0.001' : feeInUsd.toFixed(4)
+                });
+            } catch {
+                // If price fetch fails, show a typical Base fee
+                setFeeEstimate({ chainId, fee: '0.001' });
+            }
 
         } catch (error) {
             console.error('Fee estimation failed', error);
-            // Fallback to mock if API fails (common in testnets)
-            const mockFee = (Math.random() * 0.001 + 0.0001).toFixed(6);
-            setFeeEstimate({ chainId: DEFAULT_CHAIN_ID, fee: mockFee });
+            // Fallback to typical Base fee
+            setFeeEstimate({ chainId: DEFAULT_CHAIN_ID, fee: '0.001' });
         } finally {
             setIsEstimating(false);
         }
@@ -241,13 +201,30 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
         setStep('confirm');
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!selectedAsset || !feeEstimate) return;
-        onConfirm({
-            asset: selectedAsset,
-            amount,
-            chainId: feeEstimate.chainId,
-        });
+
+        setIsSending(true);
+        setSendError(null);
+
+        try {
+            const hash = await sendUsdcOnBase({
+                to: recipient.address,
+                amount: amount
+            });
+            setTxHash(hash);
+            onConfirm({
+                asset: selectedAsset,
+                amount,
+                chainId: feeEstimate.chainId,
+            });
+        } catch (error: unknown) {
+            console.error('Payment failed', error);
+            const friendly = translateWeb3Error(error);
+            setSendError(friendly);
+        } finally {
+            setIsSending(false);
+        }
     };
 
     const handleEditAmount = () => {
@@ -448,6 +425,79 @@ export function SendWizard({ recipient, onBack, onConfirm }: SendWizardProps) {
                             <Wallet className="mr-2" size={20} strokeWidth={1.75} />
                             {t('confirmAndPay')}
                         </Button>
+
+                        {/* Status UI */}
+                        <AnimatePresence>
+                            {isSending && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex items-center justify-center gap-3 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                                >
+                                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-sm font-medium">Enviando pagamento...</span>
+                                </motion.div>
+                            )}
+
+                            {txHash && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex flex-col gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Check size={18} />
+                                        <span className="text-sm font-medium">Pagamento Confirmado!</span>
+                                    </div>
+                                    <p className="text-xs break-all opacity-70">Hash: {txHash}</p>
+                                </motion.div>
+                            )}
+
+                            {sendError && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex flex-col gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="shrink-0 w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                            <AlertCircle size={22} className="text-red-400" strokeWidth={2} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-semibold text-base text-red-400">
+                                                {sendError.title}
+                                            </h4>
+                                            <p className="text-sm text-red-300/80 mt-1 leading-relaxed">
+                                                {sendError.message}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {sendError.action && (
+                                        <div className="ml-13 pl-13 pt-2 border-t border-red-500/10">
+                                            <p className="text-xs text-red-400/60 font-medium uppercase tracking-wider mb-1">
+                                                O que fazer:
+                                            </p>
+                                            <p className="text-sm text-red-300/90">
+                                                {sendError.action}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-2 mt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                                            onClick={() => setSendError(null)}
+                                        >
+                                            Tentar Novamente
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 )}
             </AnimatePresence>

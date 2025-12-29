@@ -3,12 +3,7 @@
 import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import {
-    arbitrumSepolia,
-    optimismSepolia,
-    zkSyncSepoliaTestnet,
-    sepolia,
-    bscTestnet,
-    baseSepolia
+    base
 } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
@@ -25,12 +20,7 @@ export const config = getDefaultConfig({
     appName: 'PayCripto',
     projectId: walletConnectProjectId,
     chains: [
-        baseSepolia,          // Base Sepolia
-        sepolia,              // Ethereum Sepolia
-        arbitrumSepolia,      // Arbitrum Sepolia
-        optimismSepolia,      // Optimism Sepolia
-        zkSyncSepoliaTestnet, // zkSync Era Sepolia
-        bscTestnet,           // BSC Testnet (BNB Smart Chain)
+        base,                 // Base Mainnet
     ],
     ssr: true,
 });
@@ -44,7 +34,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
                 <RainbowKitProvider
                     modalSize="compact"
                     locale="pt-BR"
-                    initialChain={baseSepolia}
+                    initialChain={base}
                 >
                     {children}
                 </RainbowKitProvider>

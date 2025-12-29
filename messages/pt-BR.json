@@ -51,7 +51,7 @@
             "connectPrompt": "Conecte a carteira para ver USDC, ETH e outros tokens.",
             "tooltip": "Mostramos apenas ativos com valor acima de 1 USDC para manter sua visao limpa.",
             "loading": "Carregando saldos em todas as redes...",
-            "empty": "Nenhum ativo encontrado nos saldos minimos.",
+            "empty": "Nenhum ativo encontrado nos saldos minimos (min. {min} USDC).",
             "estimatedTotal": "Total estimado",
             "token": "Token",
             "value": "Valor",
@@ -252,7 +252,7 @@
                     "stepsTitle": "Como funciona",
                     "step1": "Abra o dApp de multisend",
                     "step2": "Conecte sua carteira na rede Base",
-                    "step3": "Envie o CSV exportado pelo PayCrypto",
+                    "step3": "Abra o arquivo no bloco de notas, copie apenas os dados abaixo dos comentários e envie.",
                     "closing": ""
                 },
                 "footer": "O PayCrypto nao executa transacoes em lote neste momento."
@@ -320,6 +320,7 @@
         "noRecipients": "Nenhum destinatario encontrado",
         "newRecipientTitle": "Adicionar destinatario",
         "saveRecipient": "Salvar destinatario",
+        "save": "Salvar",
         "addAddress": "Adicionar endereco",
         "addressLabel": "Endereco",
         "modes": {

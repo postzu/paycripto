@@ -50,7 +50,7 @@
             "connectPrompt": "Connect your wallet to view USDC, ETH and other tokens.",
             "tooltip": "We only show assets above 1 USDC to keep the view clean.",
             "loading": "Loading balances across all networks...",
-            "empty": "No assets found above the minimum balance.",
+            "empty": "No assets found above the minimum balance (min. {min} USDC).",
             "estimatedTotal": "Estimated total",
             "token": "Token",
             "value": "Value",
@@ -319,6 +319,7 @@
         "noRecipients": "No recipients found",
         "newRecipientTitle": "Add recipient",
         "saveRecipient": "Save recipient",
+        "save": "Save",
         "addAddress": "Add address",
         "addressLabel": "Address",
         "modes": {

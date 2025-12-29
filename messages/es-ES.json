@@ -50,7 +50,7 @@
             "connectPrompt": "Conecta tu billetera para ver USDC, ETH y otros tokens.",
             "tooltip": "Mostramos solo activos arriba de 1 USDC para mantener la vista limpia.",
             "loading": "Cargando saldos en todas las redes...",
-            "empty": "Ningun activo encontrado por encima del minimo.",
+            "empty": "Ningun activo encontrado por encima del minimo (min. {min} USDC).",
             "estimatedTotal": "Total estimado",
             "token": "Token",
             "value": "Valor",
@@ -318,6 +318,7 @@
         "noRecipients": "No se encontraron destinatarios",
         "newRecipientTitle": "Agregar destinatario",
         "saveRecipient": "Guardar destinatario",
+        "save": "Guardar",
         "addAddress": "Agregar direccion",
         "addressLabel": "Direccion",
         "modes": {
