@@ -121,9 +121,9 @@
             "openReceive": "Abrir tela Receber",
             "examplesToggle": "Ver outras opcoes",
             "examplesHide": "Fechar alternativas",
-            "examplesTitle": "Exemplos de como seu dinheiro chega a Base",
-            "examplesSubtitle": "Veja as rotas mais comuns. Nos ja destacamos a melhor opcao.",
-            "examplesHelper": "Escolha a rota com melhor custo e tempo para voce.",
+            "examplesTitle": "Outras formas de deposito (avancado)",
+            "examplesSubtitle": "Para usuarios experientes ou situacoes especificas.",
+            "examplesHelper": "Fluxos alternativos. Use se precisar de algo fora do padrao.",
             "examplesRecommended": {
                 "title": "Mais simples e barato (recomendado)",
                 "route": "PIX -> USDC -> Base",
@@ -135,8 +135,8 @@
                 "footnote": "Essa e a opcao padrao do PayCripto."
             },
             "examplesAlternatives": {
-                "title": "Outras formas (menos recomendadas)",
-                "helper": "Caminhos menos recomendados para chegar a Base.",
+                "title": "Opcoes extras",
+                "helper": "Caminhos alternativos para chegar a Base.",
                 "option1": {
                     "title": "Cartao direto para Base",
                     "bullets": {
@@ -146,12 +146,15 @@
                     }
                 },
                 "option2": {
-                    "title": "Outra rede + bridge",
+                    "title": "Outra rede + conversao",
+                    "helper": "Envie por outra rede e converta para Base automaticamente.",
                     "bullets": {
-                        "tech": "Mais tecnico",
-                        "cost": "Pode custar mais: 30-45%",
-                        "alert": "Requer atencao a rede"
-                    }
+                        "tech": "Pode aceitar mais redes",
+                        "cost": "Processo mais tecnico",
+                        "alert": "Custos adicionais podem ser aplicados"
+                    },
+                    "cta": "Usar conversao externa",
+                    "ctaHelper": "Voce sera redirecionado para um servico externo confiavel."
                 },
                 "option3": {
                     "title": "Via exchange",
@@ -163,7 +166,20 @@
                 }
             },
             "examplesFeeNotice": "As taxas variam conforme horario e congestionamento. Para valores pequenos, taxas fixas pesam mais.",
-            "examplesClose": "Entendi - voltar"
+            "examplesClose": "Entendi - voltar",
+            "externalConversion": {
+                "title": "Voce esta saindo do PayCrypto",
+                "text": "Para converter ativos entre redes, voce sera redirecionado para um parceiro externo confiavel.",
+                "highlight": "Servico recomendado: ff.io",
+                "notes": {
+                    "fees": "O PayCrypto nao controla taxas ou prazos",
+                    "network": "Verifique a rede antes de confirmar",
+                    "experience": "Use apenas se souber o que esta fazendo"
+                },
+                "continue": "Continuar para ff.io",
+                "cancel": "Cancelar",
+                "legal": "Fluxo guiado protege voce e passa confianca."
+            }
         },
         "paymentGroups": {
             "title": "Grupos de pagamento",
@@ -256,6 +272,36 @@
                     "closing": ""
                 },
                 "footer": "O PayCrypto nao executa transacoes em lote neste momento."
+            }
+        },
+        "yield": {
+            "title": "Rendimento (USDC)",
+            "subtitle": "Seu dinheiro pode render mais",
+            "estimatedRate": "6,0% ao ano",
+            "availableLabel": "Valor disponível estimado",
+            "fiatSuffix": "Baseado no seu saldo atual",
+            "cta": "Ver rendimento",
+            "modal": {
+                "title": "Como funciona o rendimento PayCrypto",
+                "bullets": {
+                    "automatic": "Seu USDC pode render automaticamente",
+                    "liquidity": "Liquidez diária",
+                    "noTerm": "Sem prazo mínimo",
+                    "risk": "Risco moderado (DeFi)"
+                },
+                "comparison": {
+                    "title": "Comparação rápida (estilo banco)",
+                    "savings": "Poupança tradicional",
+                    "savingsRate": "~0,5% a.a.",
+                    "paycrypto": "PayCrypto (USDC)",
+                    "paycryptoRate": "~6% a.a."
+                },
+                "links": {
+                    "title": "Fontes de rendimento (opcional)",
+                    "aave": "Aave (Liquidez USDC)",
+                    "uniswap": "Uniswap (BTC/USDC)"
+                },
+                "continue": "Continuar"
             }
         },
         "otherAssets": {

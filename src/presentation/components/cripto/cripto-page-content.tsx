@@ -1,7 +1,8 @@
 'use client';
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import jsQR from 'jsqr';
+import { useQrCameraScanner, parseEthereumUrl } from '@/presentation/hooks/use-qr-camera-scanner';
 import { RecipientsList } from '@/presentation/components/cripto/recipients-list';
 import { SendWizard } from '@/presentation/components/cripto/send-wizard';
 import { Button } from '@/presentation/components/ui/button';
@@ -13,6 +14,7 @@ import {
     ArrowLeft,
     ArrowRight,
     ArrowDownLeft,
+    ArrowUp,
     ArrowUpRight,
     List,
     Check,
@@ -47,10 +49,7 @@ import { RecipientWithAddresses, SelectedRecipient } from '@/presentation/compon
 import QRCode from 'qrcode';
 import { LocaleSwitchNotice } from '@/presentation/components/locale/locale-switcher';
 import { AssetsSection } from '@/presentation/components/cripto/assets-section';
-import { localeToCurrency, fetchUsdcPrice, fetchAssetPrice, fetchHistoricalAssetPrice, TESTNET_CHAINS } from '@/lib/currency';
-import { getAddress } from 'viem';
-import { YieldCalculator } from '@/lib/yield-calculator';
-import { ArrowUp } from 'lucide-react';
+import { fetchAssetPrice, TESTNET_CHAINS } from '@/lib/currency';
 
 type View = 'home' | 'recipients' | 'send' | 'newRecipient';
 type RecipientMode = 'new' | 'existing';
@@ -127,7 +126,10 @@ type DepositRouteBullet = {
 
 type DepositRouteOption = {
     title: string;
+    helper?: string;
     bullets: DepositRouteBullet[];
+    ctaLabel?: string;
+    ctaHelper?: string;
 };
 
 type DepositRoutesCopy = {
@@ -249,142 +251,86 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [showDepositAlternatives, setShowDepositAlternatives] = useState(false);
     const [showOtherAssetsModal, setShowOtherAssetsModal] = useState(false);
     const [showConversionModal, setShowConversionModal] = useState(false);
+    const [showExternalConversionConfirm, setShowExternalConversionConfirm] = useState(false);
     const [showConversionAlternatives, setShowConversionAlternatives] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [transactionLabels, setTransactionLabels] = useState<Record<string, string>>({});
     const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
     const [tempLabel, setTempLabel] = useState('');
     const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const videoRef = useRef<HTMLVideoElement | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const [cameraError, setCameraError] = useState<string | null>(null);
     const [isDisconnectConfirmOpen, setIsDisconnectConfirmOpen] = useState(false);
     const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
 
     const [selectedProvider, setSelectedProvider] = useState<typeof DEPOSIT_PROVIDERS[0] | null>(null);
-    const [isQrScanModalOpen, setIsQrScanModalOpen] = useState(false);
-    const [scannedData, setScannedData] = useState<string | null>(null);
     const [showSaveAddressModal, setShowSaveAddressModal] = useState(false);
+    const [showYieldModal, setShowYieldModal] = useState(false);
+
     const [pendingScanAddress, setPendingScanAddress] = useState<string | null>(null);
     const [pendingScanAmount, setPendingScanAmount] = useState<string | undefined>(undefined);
     const [pendingScanAsset, setPendingScanAsset] = useState<string | undefined>(undefined);
 
-    // Stop camera when modal closes
-    useEffect(() => {
-        if (!isQrScanModalOpen) {
-            if (videoRef.current && videoRef.current.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
-            setCameraError(null);
-        } else {
-            startCamera();
-        }
-    }, [isQrScanModalOpen]);
+    // QR Camera Scanner Hook - Following SOLID principles (SRP)
+    const qrScanner = useQrCameraScanner({
+        onScan: useCallback((result) => {
+            setPendingScanAmount(result.amount);
+            setPendingScanAsset(result.asset);
 
-    const startCamera = async () => {
-        try {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera not compatible');
-            }
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute('playsinline', 'true'); // required to tell iOS safari we don't want fullscreen
-                videoRef.current.play();
-                requestAnimationFrame(tick);
-            }
-        } catch (err) {
-            console.error(err);
-            setCameraError('Unable to access camera. Please double check permissions.');
-        }
-    };
-
-    const tick = () => {
-        if (!videoRef.current || !isQrScanModalOpen) return;
-
-        if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-            if (!canvasRef.current) {
-                // Create ephemeral canvas if not ref (though we should use ref)
-                // For logic simplicity, let's assume valid ref
-                return;
-            }
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                canvas.height = videoRef.current.videoHeight;
-                canvas.width = videoRef.current.videoWidth;
-                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'dontInvert',
-                });
-
-                if (code && code.data) {
-                    handleScanResult(code.data);
-                    return; // Stop checking if found
-                }
-            }
-        }
-        requestAnimationFrame(tick);
-    };
-
-    const handleScanResult = (data: string) => {
-        setScannedData(data);
-        setIsQrScanModalOpen(false);
-
-        let targetAddress = data;
-        let amountFromQr: string | undefined;
-        // Basic EIP-681 parsing (very simplified)
-        if (data.toLowerCase().startsWith('ethereum:')) {
-            const parts = data.split('?');
-            const path = parts[0].replace(/^ethereum:/i, '');
-            targetAddress = path.split('@')[0]; // removal of chain id if present
-
-            if (parts.length > 1) {
-                const params = new URLSearchParams(parts[1]);
-                if (params.get('amount')) {
-                    amountFromQr = params.get('amount') || undefined;
-                }
-            }
-        }
-
-        // Process Data
-        const normalized = normalizeAddress(targetAddress);
-
-        if (normalized) {
-            setPendingScanAmount(amountFromQr);
-            setPendingScanAsset(undefined); // Could parse token from params if needed
-
-            // Check if address is already a contact
-            const existingContact = recipients.find(r => r.addresses.some(a => a.address.toLowerCase() === normalized.toLowerCase()));
+            const existingContact = recipients.find(r =>
+                r.addresses.some(a => a.address.toLowerCase() === result.address.toLowerCase())
+            );
 
             if (existingContact) {
-                // Direct to Send
-                handleSelectRecipient({
+                setSelectedRecipient({
                     id: existingContact.id,
                     name: existingContact.name,
-                    address: normalized,
-                    label: existingContact.addresses.find(a => a.address.toLowerCase() === normalized.toLowerCase())?.label
+                    address: result.address,
+                    label: existingContact.addresses.find(
+                        a => a.address.toLowerCase() === result.address.toLowerCase()
+                    )?.label
                 });
+                setView('send');
             } else {
-                // Prompt to save
-                setPendingScanAddress(normalized);
+                setPendingScanAddress(result.address);
                 setShowSaveAddressModal(true);
             }
-        } else {
-            // For now, if not address, error or alert
-            // setQrStatus({ isReading: false, error: 'Código QR inválido ou não suportado.' });
-            alert('QR Code content not a valid address: ' + data);
-        }
-    };
+        }, [recipients]),
+        normalizeAddress: useCallback((address: string) => {
+            try {
+                const { getAddress } = require('viem');
+                return getAddress(address.trim());
+            } catch {
+                return null;
+            }
+        }, []),
+    });
+
+    // Alias for backwards compatibility
+    const isQrScanModalOpen = qrScanner.isOpen;
+    const setIsQrScanModalOpen = useCallback((open: boolean) => {
+        if (open) qrScanner.open();
+        else qrScanner.close();
+    }, [qrScanner]);
+    const cameraError = qrScanner.error;
+    const videoRef = qrScanner.videoRef;
+    const canvasRef = qrScanner.canvasRef;
 
     const handleProviderClick = (provider: typeof DEPOSIT_PROVIDERS[0]) => {
         window.open(provider.url, '_blank', 'noopener,noreferrer');
         setIsDepositOpen(false);
         setSelectedProvider(provider);
         setIsProviderModalOpen(true);
+    };
+
+    const handleExternalConversionClick = () => {
+        setShowExternalConversionConfirm(true);
+    };
+
+    const handleExternalConversionConfirm = () => {
+        if (typeof window !== 'undefined') {
+            window.open('https://ff.io', '_blank', 'noopener,noreferrer');
+        }
+        setShowExternalConversionConfirm(false);
+        setIsDepositOpen(false);
     };
 
     // Load transaction labels from local storage
@@ -420,9 +366,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
 
 
-    const previewAddress = '0x4b9c8b9c2f3d9a3b5d3a1e8c9d2f13a21f7a9c4b';
     const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
-    const previewShortAddress = `${previewAddress.slice(0, 6)}...${previewAddress.slice(-4)}`;
 
     const defaultNetworkName = t('Home.network.defaultValue');
     const defaultNetworkMeta = t('Home.network.defaultMeta');
@@ -458,7 +402,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [lastExportedGroupName, setLastExportedGroupName] = useState<string>('');
     const [lastExportedFileName, setLastExportedFileName] = useState<string>('');
     const [showQuickInstructions, setShowQuickInstructions] = useState(false);
-    const [scanDetails, setScanDetails] = useState<{ id: string; date: string; time: string; block: number } | null>(null);
     const [lastExportedTotalValue, setLastExportedTotalValue] = useState<number>(0);
     const [lastExportedDate, setLastExportedDate] = useState<string>('');
     const [lastExportedRate, setLastExportedRate] = useState<number | null>(null);
@@ -523,11 +466,14 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                     },
                     {
                         title: t('Home.deposit.examplesAlternatives.option2.title'),
+                        helper: t('Home.deposit.examplesAlternatives.option2.helper'),
                         bullets: [
-                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.tech'), tone: 'neutral' },
-                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.cost'), tone: 'neutral' },
+                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.tech'), tone: 'positive' },
+                            { text: t('Home.deposit.examplesAlternatives.option2.bullets.cost'), tone: 'warning' },
                             { text: t('Home.deposit.examplesAlternatives.option2.bullets.alert'), tone: 'warning' },
                         ],
+                        ctaLabel: t('Home.deposit.examplesAlternatives.option2.cta'),
+                        ctaHelper: t('Home.deposit.examplesAlternatives.option2.ctaHelper'),
                     },
                     {
                         title: t('Home.deposit.examplesAlternatives.option3.title'),
@@ -689,6 +635,24 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             () => mockHistoricalRate
         );
     }, [usdcBalance, fiatValue, isLoadingBalance, historyItems]);
+
+    const futureYieldResult = useMemo(() => {
+        if (!usdcBalance || isLoadingBalance) return null;
+        const currentBalance = Number.parseFloat(usdcBalance);
+        const currentFiat = Number.parseFloat(fiatValue.replace(/[^0-9.-]+/g, ''));
+        const currentRate = currentBalance > 0 ? currentFiat / currentBalance : 0;
+
+        if (currentBalance <= 0) return null;
+
+        const annualYieldUsdc = currentBalance * 0.06;
+        const annualYieldFiat = annualYieldUsdc * currentRate;
+
+        return {
+            annualYieldUsdc,
+            annualYieldFiat,
+            formattedFiat: currencyFormatter.format(annualYieldFiat)
+        };
+    }, [usdcBalance, fiatValue, isLoadingBalance, currencyFormatter]);
 
     // Pending assets: until we fetch real token balances, keep it empty to avoid fake values
     const pendingAssets = useMemo<PendingAsset[]>(() => [], []);
@@ -959,12 +923,11 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         link.href = url;
         link.download = fileName;
         link.click();
-        link.click();
         URL.revokeObjectURL(url);
 
         // Calculate Total Value
         const total = group.recipients.reduce((sum, recipient) => {
-            const val = parseFloat((recipient as any).value || '0');
+            const val = parseFloat(recipient.value || '0');
             return sum + (isNaN(val) ? 0 : val);
         }, 0);
         setLastExportedTotalValue(total);
@@ -979,7 +942,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         setLastExportedFileName(fileName);
 
         // Set Token & Rate
-        const token = (group as any).exportToken || group.token || 'USDC';
+        const token = group.exportToken || group.token || 'USDC';
         setLastExportedToken(token);
 
         // Try to use current rate if available and matching, otherwise fetch or use fallback
@@ -1116,10 +1079,10 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         copyFeedbackTimeout.current = setTimeout(() => setHasCopiedAddress(false), 1500);
     };
 
-    const handleSelectRecipient = (recipient: SelectedRecipient) => {
+    const handleSelectRecipient = useCallback((recipient: SelectedRecipient) => {
         setSelectedRecipient(recipient);
         setView('send');
-    };
+    }, []);
 
     useEffect(() => {
         if (!isConnected) {
@@ -1275,7 +1238,9 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
                     ctx.drawImage(img, 0, 0);
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const result = jsQR(imageData.data, imageData.width, imageData.height);
+                    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'attemptBoth',
+                    });
 
                     if (!result) {
                         reject(new Error('Nenhum QR Code encontrado na imagem.'));
@@ -1301,16 +1266,13 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
         try {
             const qrText = await decodeQrFromFile(file);
-            const normalized = normalizeAddress(qrText);
-            if (!normalized) {
-                throw new Error(t('Recipients.qr.invalidAddress'));
-            }
-
-            setNewRecipient((prev) => ({ ...prev, address: normalized }));
+            // Reuse the same parsing used for camera scans
+            handleScanResult(qrText);
             setQrStatus({ isReading: false, error: null });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Erro ao ler QR Code.';
             setQrStatus({ isReading: false, error: message });
+            setCameraError(message);
         } finally {
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -1485,94 +1447,128 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                         >
                             {/* Balance Card */}
                             {isConnected ? (
-                                <Card
-                                    className={`relative overflow-hidden border ${hasBalance
-                                        ? 'border-0 bg-gradient-to-br from-primary via-primary/80 to-secondary p-6'
-                                        : 'border-white/10 bg-white/5 p-4'
-                                        }`}
-                                >
-                                    <div className="relative z-10 space-y-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="space-y-1">
-                                                <span className="text-white/80 text-sm font-medium tracking-tight">Saldo total</span>
-                                                <p className="text-[11px] text-white/50">{balanceDescription}</p>
+                                <>
+                                    <Card
+                                        className={`relative overflow-hidden border ${hasBalance
+                                            ? 'border-0 bg-gradient-to-br from-primary via-primary/80 to-secondary p-6'
+                                            : 'border-white/10 bg-white/5 p-4'
+                                            }`}
+                                    >
+                                        <div className="relative z-10 space-y-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="space-y-1">
+                                                    <span className="text-white/80 text-sm font-medium tracking-tight">Saldo total</span>
+                                                    <p className="text-[11px] text-white/50">{balanceDescription}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowBalance(!showBalance)}
+                                                    className="p-2 -mr-2 rounded-full text-white/70 hover:bg-white/10 transition-colors"
+                                                    aria-label={balanceToggleLabel}
+                                                    title={balanceToggleLabel}
+                                                >
+                                                    {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => setShowBalance(!showBalance)}
-                                                className="p-2 -mr-2 rounded-full text-white/70 hover:bg-white/10 transition-colors"
-                                                aria-label={balanceToggleLabel}
-                                                title={balanceToggleLabel}
-                                            >
-                                                {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
-                                            </button>
-                                        </div>
-                                        <div className="flex items-baseline gap-2">
-                                            <div className="flex items-baseline gap-1">
-                                                {showBalance && <span className="text-xl font-semibold text-white/80">$</span>}
-                                                <span className={`${hasBalance ? 'text-4xl' : 'text-3xl'} font-bold text-white tracking-tight`}>
-                                                    {balanceValue}
-                                                </span>
-                                            </div>
-                                            <span className="text-sm font-semibold text-white/70">USDC</span>
-                                        </div>
-                                        {showFiatLine && (
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
-                                                    <span>~ {fiatSymbol} {fiatValue}</span>
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Info
-                                                            size={14}
-                                                            className="text-white/50"
-                                                            aria-label={conversionTooltip}
-                                                        />
-                                                        <span className="hidden sm:inline">{conversionNotice}</span>
+                                            <div className="flex items-baseline gap-2">
+                                                <div className="flex items-baseline gap-1">
+                                                    {showBalance && <span className="text-xl font-semibold text-white/80">$</span>}
+                                                    <span className={`${hasBalance ? 'text-4xl' : 'text-3xl'} font-bold text-white tracking-tight`}>
+                                                        {balanceValue}
                                                     </span>
                                                 </div>
-                                                {yieldResult && (yieldResult.yieldBrl > 0 || yieldResult.percentageOfCdi > 0) && (
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-emerald-400 font-medium">
-                                                            +{currencyFormatter.format(yieldResult.yieldBrl)} este mês
-                                                        </span>
-                                                        <div className="h-3 w-px bg-white/20" />
-                                                        <span className="text-emerald-400 font-medium flex items-center gap-0.5">
-                                                            {yieldResult.percentageOfCdi}% do CDI
-                                                            <ArrowUp size={10} strokeWidth={3} />
+                                                <span className="text-sm font-semibold text-white/70">USDC</span>
+                                            </div>
+                                            {showFiatLine && (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+                                                        <span>~ {fiatSymbol} {fiatValue}</span>
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <Info
+                                                                size={14}
+                                                                className="text-white/50"
+                                                                aria-label={conversionTooltip}
+                                                            />
+                                                            <span className="hidden sm:inline">{conversionNotice}</span>
                                                         </span>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        {pendingAssetsTotal > 0 && (
-                                            <div className="flex flex-col gap-1 text-xs text-white/65">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowOtherAssetsModal(true)}
-                                                    className="group inline-flex items-center gap-1 text-left text-white/70 hover:text-white"
-                                                    title={otherAssetsHelper}
-                                                >
-                                                    <span className="font-semibold text-white/80">+ {pendingAssetsTotalLabel}</span>
-                                                    <span>{t('Home.otherAssets.lineSuffix')}</span>
-                                                    <Info size={14} className="text-white/50 group-hover:text-white/70" />
-                                                </button>
-                                                <span className="text-[11px] text-white/50">
-                                                    {t('Home.otherAssets.lineDisclaimer')}
-                                                </span>
-                                            </div>
-                                        )}
+                                                    {yieldResult && (yieldResult.yieldBrl > 0 || yieldResult.percentageOfCdi > 0) && (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="text-emerald-400 font-medium">
+                                                                +{currencyFormatter.format(yieldResult.yieldBrl)} este mês
+                                                            </span>
+                                                            <div className="h-3 w-px bg-white/20" />
+                                                            <span className="text-emerald-400 font-medium flex items-center gap-0.5">
+                                                                {yieldResult.percentageOfCdi}% do CDI
+                                                                <ArrowUp size={10} strokeWidth={3} />
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {pendingAssetsTotal > 0 && (
+                                                <div className="flex flex-col gap-1 text-xs text-white/65">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowOtherAssetsModal(true)}
+                                                        className="group inline-flex items-center gap-1 text-left text-white/70 hover:text-white"
+                                                        title={otherAssetsHelper}
+                                                    >
+                                                        <span className="font-semibold text-white/80">+ {pendingAssetsTotalLabel}</span>
+                                                        <span>{t('Home.otherAssets.lineSuffix')}</span>
+                                                        <Info size={14} className="text-white/50 group-hover:text-white/70" />
+                                                    </button>
+                                                    <span className="text-[11px] text-white/50">
+                                                        {t('Home.otherAssets.lineDisclaimer')}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {hasBalance && (
+                                                <div className="pt-1 flex items-center gap-2 text-white/60 text-sm">
+                                                    <span>Ganhe recompensas</span>
+                                                    <div className="px-2 py-0.5 bg-white/15 rounded-full text-xs text-white/80">Novo</div>
+                                                </div>
+                                            )}
+                                        </div>
                                         {hasBalance && (
-                                            <div className="pt-1 flex items-center gap-2 text-white/60 text-sm">
-                                                <span>Ganhe recompensas</span>
-                                                <div className="px-2 py-0.5 bg-white/15 rounded-full text-xs text-white/80">Novo</div>
-                                            </div>
+                                            <>
+                                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-secondary/30 rounded-full blur-xl" />
+                                            </>
                                         )}
-                                    </div>
-                                    {hasBalance && (
-                                        <>
-                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-                                            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-secondary/30 rounded-full blur-xl" />
-                                        </>
+                                    </Card>
+
+                                    {/* Yield Section (99Pay Style) */}
+                                    {hasBalance && futureYieldResult && (
+                                        <button
+                                            onClick={() => setShowYieldModal(true)}
+                                            className="w-full text-left group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-[0.98]"
+                                        >
+                                            <div className="relative z-10 flex items-center justify-between gap-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                                                        <ArrowUpRight size={20} strokeWidth={2.5} />
+                                                    </div>
+                                                    <div className="space-y-0.5">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="text-sm font-semibold text-white/90">{t('Home.yield.title')}</p>
+                                                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                                                                {t('Home.yield.estimatedRate')}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-white/50">{t('Home.yield.subtitle')}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end text-right">
+                                                    <p className="text-sm font-bold text-white">~ {futureYieldResult.formattedFiat}</p>
+                                                    <p className="text-[10px] text-white/40">{t('Home.yield.fiatSuffix')}</p>
+                                                </div>
+                                            </div>
+                                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                <ArrowUpRight size={60} strokeWidth={2} />
+                                            </div>
+                                        </button>
                                     )}
-                                </Card>
+                                </>
                             ) : (
                                 <Card className="bg-dark-surface border border-white/10 p-6 text-center">
                                     <Wallet className="mx-auto mb-4 text-white/80" size={40} strokeWidth={1.75} />
@@ -1724,31 +1720,31 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-2 shrink-0">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    disabled={isPreview}
-                                                    onClick={(e) => {
-                                                        if (isPreview) return;
-                                                        e.stopPropagation();
-                                                        handleExportGroup(group);
-                                                    }}
-                                                    className={`h-8 px-3 text-xs font-medium ${isPreview ? 'text-white/40 bg-white/5 cursor-not-allowed' : 'text-white/80 hover:text-white bg-white/5 hover:bg-white/10'}`}
-                                                >
-                                                    Exportar
-                                                </Button>
-                                                <button
-                                                    disabled={isPreview}
-                                                    onClick={(e) => {
-                                                        if (isPreview) return;
-                                                        e.stopPropagation();
-                                                        handleOpenEditGroup(group);
-                                                    }}
-                                                    className={`p-1.5 rounded-full ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/40 hover:text-white hover:bg-white/10 transition-colors'}`}
-                                                >
-                                                    <MoreHorizontal size={18} />
-                                                </button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        disabled={isPreview}
+                                                                        onClick={(e) => {
+                                                                            if (isPreview) return;
+                                                                            e.stopPropagation();
+                                                                            handleExportGroup(group);
+                                                                        }}
+                                                                        className={`h-8 px-3 text-xs font-medium ${isPreview ? 'text-white/40 bg-white/5 cursor-not-allowed' : 'text-white/80 hover:text-white bg-white/5 hover:bg-white/10'}`}
+                                                                    >
+                                                                        Exportar
+                                                                    </Button>
+                                                                    <button
+                                                                        disabled={isPreview}
+                                                                        onClick={(e) => {
+                                                                            if (isPreview) return;
+                                                                            e.stopPropagation();
+                                                                            handleOpenEditGroup(group);
+                                                                        }}
+                                                                        className={`p-1.5 rounded-full ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/40 hover:text-white hover:bg-white/10 transition-colors'}`}
+                                                                    >
+                                                                        <MoreHorizontal size={18} />
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2511,8 +2507,16 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     {showDepositAlternatives && (
                                         <div className="space-y-3">
                                             {depositRoutes.alternatives.options.map((option) => (
-                                                <div key={option.title} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                                    <p className="text-sm font-semibold text-white">{option.title}</p>
+                                                <div
+                                                    key={option.title}
+                                                    className={`rounded-lg border p-3 ${option.ctaLabel ? 'border-primary/35 bg-primary/5 shadow-lg shadow-primary/10' : 'border-white/10 bg-white/5'}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm font-semibold text-white">{option.title}</p>
+                                                            {option.helper && <p className="text-xs text-white/70">{option.helper}</p>}
+                                                        </div>
+                                                    </div>
                                                     <div className="mt-2 space-y-1.5">
                                                         {option.bullets.map((bullet) => (
                                                             <div key={bullet.text} className="flex items-center gap-2 text-sm text-white/80">
@@ -2521,6 +2525,24 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                             </div>
                                                         ))}
                                                     </div>
+                                                    {option.ctaLabel && (
+                                                        <div className="mt-3 space-y-2">
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="secondary"
+                                                                className="w-full justify-center border-white/25 bg-white/10 text-[13px] font-semibold text-white hover:bg-white/15"
+                                                                onClick={handleExternalConversionClick}
+                                                            >
+                                                                {option.ctaLabel}
+                                                            </Button>
+                                                            {option.ctaHelper && (
+                                                                <p className="text-[11px] text-center text-white/70">
+                                                                    {option.ctaHelper}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -2575,6 +2597,79 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     Acesse a aba {selectedProvider.name} para continuar. Você já pode fechar este modal.
                                 </p>
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showExternalConversionConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+                        onClick={() => setShowExternalConversionConfirm(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                            className="relative w-full max-w-sm rounded-2xl border border-white/15 bg-dark-surface p-6 shadow-2xl space-y-5"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/10 transition-colors text-white/70"
+                                onClick={() => setShowExternalConversionConfirm(false)}
+                                aria-label={t('Common.back')}
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="space-y-2">
+                                <p className="text-lg font-semibold text-white">{t('Home.deposit.externalConversion.title')}</p>
+                                <p className="text-sm text-white/70 leading-relaxed">
+                                    {t('Home.deposit.externalConversion.text')}
+                                </p>
+                            </div>
+
+                            <div className="rounded-xl border border-amber-300/30 bg-amber-400/10 p-4 text-sm text-amber-50">
+                                <p className="font-semibold">{t('Home.deposit.externalConversion.highlight')}</p>
+                            </div>
+
+                            <div className="space-y-2 text-sm text-white/80">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={14} className="mt-0.5 text-amber-400" />
+                                    <span>{t('Home.deposit.externalConversion.notes.fees')}</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={14} className="mt-0.5 text-amber-400" />
+                                    <span>{t('Home.deposit.externalConversion.notes.network')}</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={14} className="mt-0.5 text-amber-400" />
+                                    <span>{t('Home.deposit.externalConversion.notes.experience')}</span>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                                <Button className="w-full" onClick={handleExternalConversionConfirm}>
+                                    {t('Home.deposit.externalConversion.continue')}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="w-full"
+                                    onClick={() => setShowExternalConversionConfirm(false)}
+                                >
+                                    {t('Home.deposit.externalConversion.cancel')}
+                                </Button>
+                            </div>
+
+                            <p className="text-xs text-white/50 text-center">
+                                {t('Home.deposit.externalConversion.legal')}
+                            </p>
                         </motion.div>
                     </motion.div>
                 )}
@@ -3362,6 +3457,115 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                 )}
             </AnimatePresence>
 
+            {/* Yield Info Modal */}
+            <AnimatePresence>
+                {showYieldModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f0f] overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+                                        <Zap size={20} />
+                                    </div>
+                                    <button
+                                        onClick={() => setShowYieldModal(false)}
+                                        className="p-2 -mr-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <h3 className="text-xl font-bold text-white">{t('Home.yield.modal.title')}</h3>
+                                    <p className="text-sm text-white/50">{t('Home.yield.subtitle')}</p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {[
+                                        t('Home.yield.modal.bullets.automatic'),
+                                        t('Home.yield.modal.bullets.liquidity'),
+                                        t('Home.yield.modal.bullets.noTerm'),
+                                        t('Home.yield.modal.bullets.risk'),
+                                    ].map((bullet, i) => (
+                                        <div key={i} className="flex items-center gap-3">
+                                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
+                                                <Check size={12} className="text-emerald-400" />
+                                            </div>
+                                            <span className="text-sm text-white/80">{bullet}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Comparison Table */}
+                                <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+                                    <div className="bg-white/5 px-4 py-2 border-b border-white/10">
+                                        <p className="text-[10px] uppercase tracking-wider font-bold text-white/40">
+                                            {t('Home.yield.modal.comparison.title')}
+                                        </p>
+                                    </div>
+                                    <div className="divide-y divide-white/5">
+                                        <div className="px-4 py-3 flex items-center justify-between">
+                                            <span className="text-sm text-white/60">{t('Home.yield.modal.comparison.savings')}</span>
+                                            <span className="text-sm font-medium text-white/40">{t('Home.yield.modal.comparison.savingsRate')}</span>
+                                        </div>
+                                        <div className="px-4 py-3 flex items-center justify-between bg-emerald-500/5">
+                                            <span className="text-sm font-bold text-emerald-400">{t('Home.yield.modal.comparison.paycrypto')}</span>
+                                            <span className="text-sm font-bold text-emerald-400">{t('Home.yield.modal.comparison.paycryptoRate')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Links / Sources */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">
+                                        {t('Home.yield.modal.links.title')}
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <a
+                                            href="https://app.aave.com/reserve-overview/?underlyingAsset=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&marketName=proto_base_v3"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                                        >
+                                            <span className="text-white/70">{t('Home.yield.modal.links.aave')}</span>
+                                            <ExternalLink size={12} className="text-white/30" />
+                                        </a>
+                                        <a
+                                            href="https://app.uniswap.org/explore/pools/base/0xd0bDe473E72a9F0054ff0911feDC694589326889"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                                        >
+                                            <span className="text-white/70">{t('Home.yield.modal.links.uniswap')}</span>
+                                            <ExternalLink size={12} className="text-white/30" />
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    onClick={() => setShowYieldModal(false)}
+                                    className="w-full py-6 text-base font-bold"
+                                >
+                                    {t('Home.yield.modal.continue')}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+
             <AnimatePresence>
                 {showWhyBase && (
                     <motion.div
@@ -3404,7 +3608,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white"
-                        zIndex={50}
                     >
                         <div className="flex items-center justify-between p-4 bg-black/50 z-10 backdrop-blur-sm">
                             <button
@@ -3437,7 +3640,12 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     <div className="space-y-4">
                                         <AlertTriangle className="mx-auto text-amber-500" size={40} />
                                         <p className="text-white/80">{cameraError}</p>
-                                        <Button onClick={() => setIsQrScanModalOpen(false)}>Fechar</Button>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                                            <Button variant="secondary" onClick={() => startCamera()}>
+                                                Tentar novamente
+                                            </Button>
+                                            <Button onClick={() => setIsQrScanModalOpen(false)}>Fechar</Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}

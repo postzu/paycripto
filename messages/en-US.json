@@ -29,7 +29,7 @@
             "receive": "Receive",
             "receiveHelper": "QR Code or wallet address",
             "deposit": "Deposit",
-            "depositHelper": "Add funds with PIX or card",
+            "depositHelper": "Add funds with card",
             "history": "History"
         },
         "disconnect": "Disconnect",
@@ -42,6 +42,36 @@
             "conversionNotice": "Estimated conversion in local currency.",
             "tooltip": "Conversion is informational only and can change with the market.",
             "description": "Total balance (USDC). Estimated conversion in fiat."
+        },
+        "yield": {
+            "title": "Yield (USDC)",
+            "subtitle": "Your money could earn more",
+            "estimatedRate": "6.0% per year",
+            "availableLabel": "Estimated available value",
+            "fiatSuffix": "Based on your current balance",
+            "cta": "View yield",
+            "modal": {
+                "title": "How PayCrypto yield works",
+                "bullets": {
+                    "automatic": "Your USDC can earn yield automatically",
+                    "liquidity": "Daily liquidity",
+                    "noTerm": "No minimum term",
+                    "risk": "Moderate risk (DeFi)"
+                },
+                "comparison": {
+                    "title": "Quick comparison (bank style)",
+                    "savings": "Traditional savings",
+                    "savingsRate": "~0.5% p.a.",
+                    "paycrypto": "PayCrypto (USDC)",
+                    "paycryptoRate": "~6% p.a."
+                },
+                "links": {
+                    "title": "Yield sources (optional)",
+                    "aave": "Aave (USDC Liquidity)",
+                    "uniswap": "Uniswap (BTC/USDC)"
+                },
+                "continue": "Continue"
+            }
         },
         "assetsSection": {
             "title": "Assets",
@@ -106,9 +136,9 @@
             "seeSupported": "See supported networks"
         },
         "deposit": {
-            "title": "Deposit with PIX or card",
-            "subtitle": "Add funds with PIX or card. It lands in minutes.",
-            "microcopy": "Add funds with PIX or card. It lands in minutes.",
+            "title": "Deposit with card",
+            "subtitle": "Add funds with card. It lands in minutes.",
+            "microcopy": "Add funds with card. It lands in minutes.",
             "highlights": {
                 "instant": "Instant",
                 "card": "Card",
@@ -120,9 +150,9 @@
             "openReceive": "Open Receive screen",
             "examplesToggle": "See other options",
             "examplesHide": "Hide alternatives",
-            "examplesTitle": "Examples of how your money lands on Base",
-            "examplesSubtitle": "See the common routes. We already highlight the best option.",
-            "examplesHelper": "Pick the route that balances cost and speed for you.",
+            "examplesTitle": "Other deposit paths (advanced)",
+            "examplesSubtitle": "For experienced users or specific scenarios.",
+            "examplesHelper": "Alternate flows. Use when the main flow does not fit your case.",
             "examplesRecommended": {
                 "title": "Simpler and cheaper (recommended)",
                 "route": "PIX -> USDC -> Base",
@@ -134,8 +164,8 @@
                 "footnote": "This is the default PayCripto option."
             },
             "examplesAlternatives": {
-                "title": "Other routes (less recommended)",
-                "helper": "Less recommended paths to reach Base.",
+                "title": "Extra options",
+                "helper": "Alternative paths to reach Base.",
                 "option1": {
                     "title": "Card directly to Base",
                     "bullets": {
@@ -145,12 +175,15 @@
                     }
                 },
                 "option2": {
-                    "title": "Other network + bridge",
+                    "title": "Other network + conversion",
+                    "helper": "Send from another network and convert to Base automatically.",
                     "bullets": {
-                        "tech": "More technical",
-                        "cost": "Can cost more: 30-45%",
-                        "alert": "Watch the network choice"
-                    }
+                        "tech": "Can accept more networks",
+                        "cost": "More technical process",
+                        "alert": "Additional costs may apply"
+                    },
+                    "cta": "Use external conversion",
+                    "ctaHelper": "You will be redirected to a trusted external service."
                 },
                 "option3": {
                     "title": "Via exchange",
@@ -162,7 +195,20 @@
                 }
             },
             "examplesFeeNotice": "Fees change with time and congestion. Small amounts feel fixed fees more.",
-            "examplesClose": "Got it - back"
+            "examplesClose": "Got it - back",
+            "externalConversion": {
+                "title": "You are leaving PayCrypto",
+                "text": "To convert assets between networks, you will be redirected to a trusted external partner.",
+                "highlight": "Recommended service: ff.io",
+                "notes": {
+                    "fees": "PayCrypto does not control fees or timelines",
+                    "network": "Check the network before confirming",
+                    "experience": "Use only if you know what you are doing"
+                },
+                "continue": "Continue to ff.io",
+                "cancel": "Cancel",
+                "legal": "A guided step keeps trust and protects you."
+            }
         },
         "paymentGroups": {
             "title": "Payment groups",

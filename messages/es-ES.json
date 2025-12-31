@@ -29,7 +29,7 @@
             "receive": "Recibir",
             "receiveHelper": "Codigo QR o direccion de la billetera",
             "deposit": "Depositar",
-            "depositHelper": "Agregar saldo con PIX o tarjeta",
+            "depositHelper": "Agregar saldo con tarjeta",
             "history": "Historial"
         },
         "disconnect": "Desconectar",
@@ -105,9 +105,9 @@
             "seeSupported": "Ver redes soportadas"
         },
         "deposit": {
-            "title": "Depositar con PIX o tarjeta",
-            "subtitle": "Agrega saldo con PIX o tarjeta. Llega en minutos.",
-            "microcopy": "Agrega saldo con PIX o tarjeta. Llega en minutos.",
+            "title": "Depositar con tarjeta",
+            "subtitle": "Agrega saldo con tarjeta. Llega en minutos.",
+            "microcopy": "Agrega saldo con tarjeta. Llega en minutos.",
             "highlights": {
                 "instant": "Instantaneo",
                 "card": "Tarjeta",
@@ -119,9 +119,9 @@
             "openReceive": "Abrir pantalla Recibir",
             "examplesToggle": "Ver otras opciones",
             "examplesHide": "Cerrar alternativas",
-            "examplesTitle": "Ejemplos de como tu dinero llega a Base",
-            "examplesSubtitle": "Mira las rutas mas comunes. Ya destacamos la mejor opcion.",
-            "examplesHelper": "Elige la ruta con mejor equilibrio de costo y tiempo.",
+            "examplesTitle": "Otras formas de deposito (avanzado)",
+            "examplesSubtitle": "Para usuarios con experiencia o casos especificos.",
+            "examplesHelper": "Flujos alternativos. Usa cuando el flujo principal no sirva.",
             "examplesRecommended": {
                 "title": "Mas simple y barato (recomendado)",
                 "route": "PIX -> USDC -> Base",
@@ -133,8 +133,8 @@
                 "footnote": "Esta es la opcion predeterminada de PayCripto."
             },
             "examplesAlternatives": {
-                "title": "Otras formas (menos recomendadas)",
-                "helper": "Caminos menos recomendados para llegar a Base.",
+                "title": "Opciones extra",
+                "helper": "Rutas alternativas para llegar a Base.",
                 "option1": {
                     "title": "Tarjeta directa a Base",
                     "bullets": {
@@ -144,12 +144,15 @@
                     }
                 },
                 "option2": {
-                    "title": "Otra red + bridge",
+                    "title": "Otra red + conversion",
+                    "helper": "Envia desde otra red y convierte a Base automaticamente.",
                     "bullets": {
-                        "tech": "Mas tecnico",
-                        "cost": "Puede costar mas: 30-45%",
-                        "alert": "Requiere atencion a la red"
-                    }
+                        "tech": "Puede aceptar mas redes",
+                        "cost": "Proceso mas tecnico",
+                        "alert": "Pueden aplicarse costos adicionales"
+                    },
+                    "cta": "Usar conversion externa",
+                    "ctaHelper": "Seras redirigido a un servicio externo confiable."
                 },
                 "option3": {
                     "title": "Via exchange",
@@ -161,7 +164,20 @@
                 }
             },
             "examplesFeeNotice": "Las tarifas varian segun horario y congestion. Para montos pequenos, las tarifas fijas pesan mas.",
-            "examplesClose": "Listo - volver"
+            "examplesClose": "Listo - volver",
+            "externalConversion": {
+                "title": "Estas saliendo de PayCrypto",
+                "text": "Para convertir activos entre redes, seras redirigido a un socio externo confiable.",
+                "highlight": "Servicio recomendado: ff.io",
+                "notes": {
+                    "fees": "PayCrypto no controla tarifas ni plazos",
+                    "network": "Verifica la red antes de confirmar",
+                    "experience": "Usa solo si sabes lo que haces"
+                },
+                "continue": "Continuar a ff.io",
+                "cancel": "Cancelar",
+                "legal": "Paso guiado protege y transmite confianza."
+            }
         },
         "paymentGroups": {
             "title": "Grupos de pago",
