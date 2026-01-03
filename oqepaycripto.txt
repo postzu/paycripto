@@ -1,0 +1,4 @@
+PayCripto é um app web que quer tornar o envio e recebimento de criptomoedas tão simples quanto usar o PIX: você conecta sua carteira (ex.: MetaMask), vê saldo em reais/dólares, escolhe um destinatário e simula o envio com estimativa de taxa.
+
+Também permite gerar/copyar seu endereço ou QR para receber, e já está pronto para ser usado em português, inglês e espanhol.
+

@@ -2,11 +2,12 @@
 // Utility to translate technical Web3/Ethers errors into user-friendly messages
 
 import { WalletNotFoundError, WrongNetworkError } from './wallet';
-import { InsufficientUsdcError, InsufficientGasError } from './sendUsdcBase';
+import { InsufficientUsdcError, InsufficientGasError, InvalidAddressError } from './sendUsdcBase';
 
 export type Web3ErrorCode =
     | 'INSUFFICIENT_USDC'
     | 'INSUFFICIENT_GAS'
+    | 'INVALID_ADDRESS'
     | 'USER_REJECTED'
     | 'NETWORK_ERROR'
     | 'WRONG_NETWORK'
@@ -41,6 +42,15 @@ export function translateWeb3Error(error: unknown): FriendlyError {
             title: 'Rede Incorreta',
             message: 'Sua carteira está conectada a uma rede diferente da Base.',
             action: 'Troque para a rede Base na sua carteira e tente novamente.'
+        };
+    }
+
+    if (error instanceof InvalidAddressError) {
+        return {
+            code: 'INVALID_ADDRESS',
+            title: 'Endereço Inválido',
+            message: 'O endereço de destino não é válido para a rede Base (checksum inválido).',
+            action: 'Verifique se o endereço está correto e tente novamente.'
         };
     }
 

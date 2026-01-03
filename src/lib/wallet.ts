@@ -56,9 +56,12 @@ export async function getBaseSigner(): Promise<ethers.JsonRpcSigner> {
 
     const provider = new ethers.BrowserProvider(window.ethereum);
 
-    // Request account access first
+    // Request account access only if not already connected
     try {
-        await provider.send('eth_requestAccounts', []);
+        const accounts = await provider.send('eth_accounts', []);
+        if (!accounts || accounts.length === 0) {
+            await provider.send('eth_requestAccounts', []);
+        }
     } catch (error: unknown) {
         const err = error as Record<string, unknown>;
         if (err?.code === 4001) {

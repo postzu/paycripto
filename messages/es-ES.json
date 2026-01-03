@@ -43,6 +43,38 @@
             "tooltip": "La conversion es solo informativa y puede variar con el mercado.",
             "description": "Saldo total (USDC). Conversion estimada en fiat."
         },
+        "yield": {
+            "title": "Rendimiento (USDC)",
+            "subtitle": "Tu dinero puede rendir mas",
+            "estimatedRate": "6,0% al ano",
+            "availableLabel": "Valor disponible estimado",
+            "availablePrefix": "Desde",
+            "zeroBalanceMessage": "Sin valor disponible con el saldo actual",
+            "fiatSuffix": "Calculado desde el 30% de tu saldo actual",
+            "cta": "Ver rendimiento",
+            "modal": {
+                "title": "Como funciona el rendimiento PayCrypto",
+                "bullets": {
+                    "automatic": "Tu USDC puede generar rendimiento automaticamente",
+                    "liquidity": "Liquidez diaria",
+                    "noTerm": "Sin plazo minimo",
+                    "risk": "Riesgo moderado (DeFi)"
+                },
+                "comparison": {
+                    "title": "Comparacion rapida (estilo banco)",
+                    "savings": "Ahorro tradicional",
+                    "savingsRate": "~0,5% a.a.",
+                    "paycrypto": "PayCrypto (USDC)",
+                    "paycryptoRate": "~6% a.a."
+                },
+                "links": {
+                    "title": "Fuentes de rendimiento (opcional)",
+                    "aave": "Aave (Liquidez USDC)",
+                    "uniswap": "Uniswap (BTC/USDC)"
+                },
+                "continue": "Continuar"
+            }
+        },
         "assetsSection": {
             "title": "Activos",
             "conversionLabel": "Conversion estimada en {currency}",
@@ -319,8 +351,8 @@
         "security": {
             "nonCustodial": "Sigues en control. PayCripto no guarda tus llaves.",
             "unsupportedNetworkTitle": "Red no soportada",
-            "unsupportedNetworkDesc": "Para proteger fondos, usa solo las testnets autorizadas: {networks}.",
-            "unsupportedNetworkAdvice": "Cambia a Base Sepolia (u otra testnet soportada) antes de firmar cualquier transaccion.",
+            "unsupportedNetworkDesc": "Para proteger fondos, usa solo la red Base: {networks}.",
+            "unsupportedNetworkAdvice": "Cambia a la red Base antes de firmar cualquier transaccion.",
             "switchTo": "Cambiar a {network}"
         }
     },
@@ -382,5 +414,22 @@
         "editAmount": "Editar monto",
         "confirmPrompt": "Estas transfiriendo {amount} {asset} a {name}. Confirmar envio?",
         "sentStatus": "Transferencia enviada con exito."
+    },
+    "Receipt": {
+        "title": "Pago Confirmado",
+        "recipient": "Destinatario",
+        "network": "Red",
+        "fee": "Tarifa",
+        "status": "Estado",
+        "txHash": "Hash de la transacción",
+        "viewOnExplorer": "Ver en BaseScan",
+        "share": "Compartir",
+        "shareTitle": "Recibo PayCripto",
+        "shareText": "Envié {amount} {token} a {recipient} via PayCripto",
+        "statusLabels": {
+            "pending": "Pendiente",
+            "completed": "Completada",
+            "failed": "Fallida"
+        }
     }
 }

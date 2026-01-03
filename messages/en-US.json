@@ -48,7 +48,9 @@
             "subtitle": "Your money could earn more",
             "estimatedRate": "6.0% per year",
             "availableLabel": "Estimated available value",
-            "fiatSuffix": "Based on your current balance",
+            "availablePrefix": "Starting from",
+            "zeroBalanceMessage": "No amount available with current balance",
+            "fiatSuffix": "Calculated from 30% of your current balance",
             "cta": "View yield",
             "modal": {
                 "title": "How PayCrypto yield works",
@@ -350,8 +352,8 @@
         "security": {
             "nonCustodial": "You stay in control. PayCripto never holds your keys.",
             "unsupportedNetworkTitle": "Unsupported network",
-            "unsupportedNetworkDesc": "To keep funds safe, stay only on the approved test networks: {networks}.",
-            "unsupportedNetworkAdvice": "Switch to Base Sepolia (or another supported testnet) before signing any transaction.",
+            "unsupportedNetworkDesc": "To keep funds safe, use only the Base network: {networks}.",
+            "unsupportedNetworkAdvice": "Switch to the Base network before signing any transaction.",
             "switchTo": "Switch to {network}"
         }
     },
@@ -413,5 +415,22 @@
         "editAmount": "Edit amount",
         "confirmPrompt": "You are transferring {amount} {asset} to {name}. Confirm send?",
         "sentStatus": "Transfer sent successfully."
+    },
+    "Receipt": {
+        "title": "Payment Confirmed",
+        "recipient": "Recipient",
+        "network": "Network",
+        "fee": "Fee",
+        "status": "Status",
+        "txHash": "Transaction hash",
+        "viewOnExplorer": "View on BaseScan",
+        "share": "Share",
+        "shareTitle": "PayCripto Receipt",
+        "shareText": "I sent {amount} {token} to {recipient} via PayCripto",
+        "statusLabels": {
+            "pending": "Pending",
+            "completed": "Completed",
+            "failed": "Failed"
+        }
     }
 }

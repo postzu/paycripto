@@ -5,16 +5,16 @@ export const localeToCurrency: Record<string, { code: string; symbol: string; na
     'es-ES': { code: 'EUR', symbol: '€', name: 'euros' },
 };
 
-// USDT/USDC contract addresses per testnet chain
-// Note: Most testnets don't have official USDT, using mock/test tokens
+// USDC contract addresses per chain
 export const USDC_CONTRACTS: Record<number, `0x${string}` | null> = {
     8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base Mainnet (Circle USDC)
 };
 
-// Testnet chain configurations
-export const TESTNET_CHAINS: Record<string, { id: number; name: string; icon: string; nativeSymbol: string }> = {
+// Supported chain configurations
+export const SUPPORTED_CHAINS: Record<string, { id: number; name: string; icon: string; nativeSymbol: string }> = {
     base: { id: 8453, name: 'Base', icon: '🟦', nativeSymbol: 'ETH' },
 };
+
 
 const ASSET_PRICE_IDS: Record<string, { id: string; fallback: number }> = {
     ETH: { id: 'ethereum', fallback: 3800 },

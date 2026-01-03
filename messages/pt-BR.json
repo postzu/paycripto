@@ -279,7 +279,9 @@
             "subtitle": "Seu dinheiro pode render mais",
             "estimatedRate": "6,0% ao ano",
             "availableLabel": "Valor disponível estimado",
-            "fiatSuffix": "Baseado no seu saldo atual",
+            "availablePrefix": "A partir de",
+            "zeroBalanceMessage": "Sem valor disponivel com o saldo atual",
+            "fiatSuffix": "Calculado a partir de 30% do seu saldo atual",
             "cta": "Ver rendimento",
             "modal": {
                 "title": "Como funciona o rendimento PayCrypto",
@@ -351,8 +353,8 @@
         "security": {
             "nonCustodial": "Voce continua no controle. O PayCripto nao guarda suas chaves.",
             "unsupportedNetworkTitle": "Rede nao suportada",
-            "unsupportedNetworkDesc": "Para proteger seus fundos, use apenas as redes de teste autorizadas: {networks}.",
-            "unsupportedNetworkAdvice": "Troque para a Base Sepolia (ou outra testnet suportada) antes de assinar qualquer transacao.",
+            "unsupportedNetworkDesc": "Para proteger seus fundos, use apenas a rede Base: {networks}.",
+            "unsupportedNetworkAdvice": "Troque para a rede Base antes de assinar qualquer transacao.",
             "switchTo": "Trocar para {network}"
         }
     },
@@ -414,5 +416,22 @@
         "editAmount": "Editar valor",
         "confirmPrompt": "Voce esta transferindo {amount} {asset} para {name}. Confirmar envio?",
         "sentStatus": "Transferencia enviada com sucesso."
+    },
+    "Receipt": {
+        "title": "Pagamento Confirmado",
+        "recipient": "Destinatário",
+        "network": "Rede",
+        "fee": "Taxa",
+        "status": "Status",
+        "txHash": "Hash da transação",
+        "viewOnExplorer": "Ver no BaseScan",
+        "share": "Compartilhar",
+        "shareTitle": "Recibo PayCripto",
+        "shareText": "Enviei {amount} {token} para {recipient} via PayCripto",
+        "statusLabels": {
+            "pending": "Pendente",
+            "completed": "Concluída",
+            "failed": "Falhou"
+        }
     }
 }

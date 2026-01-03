@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance, useChainId } from 'wagmi';
-import { localeToCurrency, fetchUsdcPrice, TESTNET_CHAINS } from '@/lib/currency';
+import { localeToCurrency, fetchUsdcPrice, SUPPORTED_CHAINS } from '@/lib/currency';
 
 interface UseUsdcBalanceReturn {
     usdcBalance: string;
@@ -24,13 +24,12 @@ export function useUsdcBalance(locale: string): UseUsdcBalanceReturn {
     const fiatInfo = localeToCurrency[locale] || localeToCurrency['en-US'];
 
     // Get current chain info
-    const chainInfo = Object.values(TESTNET_CHAINS).find((chain) => chain.id === chainId) || {
+    const chainInfo = Object.values(SUPPORTED_CHAINS).find((chain) => chain.id === chainId) || {
         name: 'Unknown',
         icon: '🌐',
     };
 
-    // For testnets: Use native balance (ETH) since USDC doesn't exist
-    // We'll treat native balance as "test USDC" for demo purposes
+    // Use native balance for demo purposes
     const { data: nativeBalance, isLoading: isLoadingBalance, error } = useBalance({
         address,
         chainId,

@@ -3,20 +3,25 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { Coins, Wallet, AlertCircle, Check } from 'lucide-react';
+import { Coins, Wallet, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { fetchAssetPrice, localeToCurrency } from '@/lib/currency';
 import { SelectedRecipient } from './types';
-import { usePublicClient } from 'wagmi';
-import { sendUsdcOnBase } from '@/lib/sendUsdcBase';
 import { translateWeb3Error, FriendlyError } from '@/lib/web3-errors';
+import { logEvent } from '@/lib/analytics';
+import { useCreateTransfer } from '@/presentation/hooks/use-create-transfer';
+import { TransactionReceipt } from './transaction-receipt';
 
 // Supported assets mock
 const ASSETS = [
     { symbol: 'ETH', name: 'Ethereum', icon: 'ETH' },
     { symbol: 'USDC', name: 'USD Coin', icon: 'USDC' },
 ];
+
+import { useReadContract } from 'wagmi';
+import { BASE_USDC_ADDRESS } from '../../../config/baseUsdc';
+import { formatUnits, erc20Abi } from 'viem';
 
 // Network icons
 const NETWORKS: Record<number, { name: string; icon: string }> = {
@@ -34,12 +39,13 @@ const DEFAULT_CHAIN_ID = 8453;
 interface SendWizardProps {
     recipient: SelectedRecipient;
     onBack: () => void;
-    onConfirm: (data: { asset: string; amount: string; chainId: number }) => void;
+    onConfirm: (data: { asset: string; amount: string; chainId: number }) => Promise<string>;
     initialAsset?: string;
     initialAmount?: string;
+    senderAddress: string;
 }
 
-export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initialAmount }: SendWizardProps) {
+export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initialAmount, senderAddress }: SendWizardProps) {
     const t = useTranslations('Send');
     const locale = useLocale();
     const fiatInfo = localeToCurrency[locale] || localeToCurrency['en-US'];
@@ -56,11 +62,21 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
     const [isLoadingPrice, setIsLoadingPrice] = useState(false);
     const [priceError, setPriceError] = useState<string | null>(null);
     const [feeFiatRate, setFeeFiatRate] = useState<number | null>(null);
-    const [isLoadingFeeRate, setIsLoadingFeeRate] = useState(false);
+    const [insufficientBalance, setInsufficientBalance] = useState(false);
+
+    const { data: usdcBalanceValue } = useReadContract({
+        address: BASE_USDC_ADDRESS as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [senderAddress as `0x${string}`],
+    });
+
     const [feeRateError, setFeeRateError] = useState<string | null>(null);
+    const [isLoadingFeeRate, setIsLoadingFeeRate] = useState(false);
     const [isSending, setIsSending] = useState(false);
-    const [txHash, setTxHash] = useState<string | null>(null);
     const [sendError, setSendError] = useState<FriendlyError | null>(null);
+    const { createTransfer, lastTransfer } = useCreateTransfer();
+    const [showReceipt, setShowReceipt] = useState(false);
 
     const selectedAssetData = ASSETS.find((a) => a.symbol === selectedAsset);
     const shortRecipientAddress = `${recipient.address.slice(0, 6)}...${recipient.address.slice(-4)}`;
@@ -86,6 +102,15 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
             maximumFractionDigits: 2,
         })}`;
     })();
+
+    // Initial log
+    useEffect(() => {
+        logEvent('send_wizard_start', {
+            address: recipient.address,
+            initialAsset,
+            initialAmount
+        });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!selectedAsset) {
@@ -140,63 +165,86 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
         };
     }, [fiatInfo.code]);
 
-    const publicClient = usePublicClient();
+
 
     const estimateFee = async () => {
         setIsEstimating(true);
         setFeeEstimate(null);
+        logEvent('send_wizard_estimate_fee', { asset: selectedAsset });
 
         try {
             if (!selectedAsset) throw new Error('No asset selected');
 
             const chainId = DEFAULT_CHAIN_ID;
+            const { estimateEthFeeAsEth } = await import('@/lib/sendUsdcBase');
 
-            if (!publicClient) {
-                // Fallback simulation if no public client
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                // Base has very low fees, typically < $0.01
-                setFeeEstimate({ chainId, fee: '0.001' });
-                return;
-            }
+            // 1. Estimate native gas cost (in ETH)
+            const baseEthFee = await estimateEthFeeAsEth({
+                to: recipient.address,
+                amount: amount || '0'
+            });
 
-            // Simple gas estimation for ERC-20 transfer on Base
-            // ERC-20 transfers typically use ~65,000 gas
-            const estimatedGas = BigInt(65000);
-            const gasPrice = await publicClient.getGasPrice();
-            const feeInWei = estimatedGas * gasPrice;
-
-            // Convert ETH fee to USD
-            // Base has very low fees, so this will be a small amount
-            try {
+            if (selectedAsset === 'USDC') {
                 const { fetchAssetPrice } = await import('@/lib/currency');
+                // 2. Fetch prices to convert ETH fee to USDC
                 const ethPrice = await fetchAssetPrice('ETH', 'USD');
-                const feeInUsd = (Number(feeInWei) / 1e18) * ethPrice;
+                const usdcPrice = await fetchAssetPrice('USDC', 'USD');
+
+                // Fee in USD (Base cost)
+                const feeInUsd = parseFloat(baseEthFee) * ethPrice;
+                // Fee in USDC
+                const feeInUsdc = feeInUsd / (usdcPrice || 1);
+                // 3. Add 10% surcharge (Circle Paymaster requirement)
+                const feeWithSurcharge = feeInUsdc * 1.10;
+
+                // 4. Pre-flight balance check
+                const totalRequiredUsdc = parseFloat(amount || '0') + feeWithSurcharge;
+                if (usdcBalanceValue !== undefined) {
+                    const balanceFormatted = formatUnits(usdcBalanceValue, 6);
+                    setInsufficientBalance(parseFloat(balanceFormatted) < totalRequiredUsdc);
+                }
 
                 setFeeEstimate({
                     chainId,
-                    fee: feeInUsd < 0.0001 ? '< 0.001' : feeInUsd.toFixed(4)
+                    fee: feeWithSurcharge.toFixed(6),
+                    error: undefined
                 });
-            } catch {
-                // If price fetch fails, show a typical Base fee
-                setFeeEstimate({ chainId, fee: '0.001' });
+            } else {
+                // For ETH or others, just use baseEthFee
+                setInsufficientBalance(false); // Native balance check is handled elsewhere or by wallet
+                setFeeEstimate({
+                    chainId,
+                    fee: baseEthFee,
+                    error: undefined
+                });
             }
 
         } catch (error) {
             console.error('Fee estimation failed', error);
-            // Fallback to typical Base fee
-            setFeeEstimate({ chainId: DEFAULT_CHAIN_ID, fee: '0.001' });
+            const friendly = translateWeb3Error(error);
+
+            setFeeEstimate({
+                chainId: DEFAULT_CHAIN_ID,
+                fee: '---',
+                error: friendly.message
+            });
         } finally {
             setIsEstimating(false);
         }
     };
 
     const handleAssetSelect = (symbol: string) => {
+        logEvent('send_wizard_asset_selected', { asset: symbol });
         setSelectedAsset(symbol);
         setStep('amount');
     };
 
     const handleAmountSubmit = () => {
         if (!amount || parseFloat(amount) <= 0) return;
+        logEvent('send_wizard_amount_entered', {
+            asset: selectedAsset,
+            amount: parseFloat(amount)
+        });
         estimateFee();
         setStep('confirm');
     };
@@ -207,24 +255,64 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
         setIsSending(true);
         setSendError(null);
 
+        logEvent('send_wizard_submit', {
+            asset: selectedAsset,
+            amount: parseFloat(amount),
+            chainId: feeEstimate.chainId,
+            fee: parseFloat(feeEstimate.fee)
+        });
+
         try {
-            const hash = await sendUsdcOnBase({
-                to: recipient.address,
-                amount: amount
-            });
-            setTxHash(hash);
-            onConfirm({
+            // DELEGATE to parent via onConfirm
+            const hash = await onConfirm({
                 asset: selectedAsset,
-                amount,
-                chainId: feeEstimate.chainId,
+                amount: amount,
+                chainId: feeEstimate.chainId
             });
+
+            // Persist transfer
+            await createTransfer({
+                userId: senderAddress,
+                recipientId: recipient.contactId.startsWith('temp-') ? undefined : recipient.contactId,
+                recipientAddress: recipient.address,
+                recipientName: recipient.name,
+                token: selectedAsset,
+                amount: amount,
+                chainId: feeEstimate.chainId,
+                feeEstimate: feeEstimate.fee,
+                txHash: hash,
+                fiatCurrency: fiatInfo.code
+            });
+
+            setShowReceipt(true);
+            logEvent('send_wizard_success', {
+                asset: selectedAsset,
+                amount: parseFloat(amount),
+                txHash: hash
+            });
+
+            // We don't call onConfirm immediately anymore
+            // onConfirm will be called when user closes receipt
         } catch (error: unknown) {
             console.error('Payment failed', error);
             const friendly = translateWeb3Error(error);
             setSendError(friendly);
+            logEvent('send_wizard_error', {
+                error: friendly.title,
+                message: friendly.message,
+                asset: selectedAsset
+            });
         } finally {
             setIsSending(false);
         }
+    };
+
+    const handleReceiptClose = () => {
+        setShowReceipt(false);
+        // We already called it during handleConfirm
+        // But we might want to notify completion? 
+        // For now just go home
+        onBack();
     };
 
     const handleEditAmount = () => {
@@ -396,7 +484,7 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
                                 <div className="flex items-center gap-2">
                                     <span className="text-2xl">{NETWORKS[feeEstimate.chainId]?.icon}</span>
                                     <div className="text-right">
-                                        <p className="font-medium text-white">${feeEstimate.fee}</p>
+                                        <p className="font-medium text-white">{feeEstimate.fee} USDC</p>
                                         <p className="text-xs text-white/50">{NETWORKS[feeEstimate.chainId]?.name}</p>
                                         <div className="text-xs text-white/60">
                                             {isLoadingFeeRate ? (
@@ -415,11 +503,21 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
                             ) : null}
                         </Card>
 
+                        {insufficientBalance && (
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                                <AlertCircle size={20} strokeWidth={2} />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-semibold">Saldo Insuficiente</p>
+                                    <p className="text-xs opacity-80">Seu saldo de USDC não cobre o valor do envio + taxa de gás da rede (+10%).</p>
+                                </div>
+                            </div>
+                        )}
+
                         <Button
                             className="w-full"
                             size="lg"
                             onClick={handleConfirm}
-                            disabled={isEstimating || !!feeEstimate?.error}
+                            disabled={isEstimating || !!feeEstimate?.error || insufficientBalance}
                             isLoading={isEstimating}
                         >
                             <Wallet className="mr-2" size={20} strokeWidth={1.75} />
@@ -439,18 +537,12 @@ export function SendWizard({ recipient, onBack, onConfirm, initialAsset, initial
                                 </motion.div>
                             )}
 
-                            {txHash && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="flex flex-col gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Check size={18} />
-                                        <span className="text-sm font-medium">Pagamento Confirmado!</span>
-                                    </div>
-                                    <p className="text-xs break-all opacity-70">Hash: {txHash}</p>
-                                </motion.div>
+                            {/* Success UI replaced by TransactionReceipt overlay */}
+                            {lastTransfer && showReceipt && (
+                                <TransactionReceipt
+                                    transfer={lastTransfer}
+                                    onClose={handleReceiptClose}
+                                />
                             )}
 
                             {sendError && (

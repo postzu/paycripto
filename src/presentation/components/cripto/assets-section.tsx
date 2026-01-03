@@ -3,25 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { createPublicClient, http, formatUnits, Chain } from 'viem';
-import {
-    arbitrumSepolia,
-    optimismSepolia,
-    zkSyncSepoliaTestnet,
-    sepolia,
-    bscTestnet,
-    baseSepolia
-} from 'viem/chains';
+import { base } from 'viem/chains';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ExternalLink, Coins } from 'lucide-react';
-import { TESTNET_CHAINS, USDC_CONTRACTS, fetchAssetPrice, fetchUsdcPrice, localeToCurrency } from '@/lib/currency';
+import { SUPPORTED_CHAINS, USDC_CONTRACTS, fetchAssetPrice, fetchUsdcPrice, localeToCurrency } from '@/lib/currency';
 
+// Only Base mainnet is supported
 const CHAIN_MAP: Record<number, Chain> = {
-    [sepolia.id]: sepolia,
-    [arbitrumSepolia.id]: arbitrumSepolia,
-    [optimismSepolia.id]: optimismSepolia,
-    [zkSyncSepoliaTestnet.id]: zkSyncSepoliaTestnet,
-    [bscTestnet.id]: bscTestnet,
-    [baseSepolia.id]: baseSepolia,
+    [base.id]: base,
 };
 
 type Asset = {
@@ -59,7 +48,7 @@ export function AssetsSection({ address, preview = false }: AssetsSectionProps) 
     const [loading, setLoading] = useState(false);
     const [isSectionExpanded, setIsSectionExpanded] = useState(false);
     const previewAssets = useMemo<NetworkAssets[]>(() => {
-        const baseChain = TESTNET_CHAINS.base;
+        const baseChain = SUPPORTED_CHAINS.base;
         if (!baseChain) return [];
 
         return [
@@ -101,7 +90,7 @@ export function AssetsSection({ address, preview = false }: AssetsSectionProps) 
         const fetchBalances = async () => {
             setLoading(true);
             // Parallelize requests for better performance
-            const promises = Object.values(TESTNET_CHAINS).map(async (chainConfig) => {
+            const promises = Object.values(SUPPORTED_CHAINS).map(async (chainConfig) => {
                 const chainDef = CHAIN_MAP[chainConfig.id];
                 if (!chainDef) return null;
 
@@ -165,9 +154,6 @@ export function AssetsSection({ address, preview = false }: AssetsSectionProps) 
                     }
 
                     // Filter small balances for cleaner UI (User requested > 1 USDC)
-                    // We keep the asset if it contributes, but the requirement says "Mostramos apenas ativos com valor acima de 1 USDC"
-                    // However, we still want to show the network if TOTAL is > 0? Or strictly per token?
-                    // User Rule: "Filtro >= 1 USDC". Assuming per token or total. Let's filter tokens < 1 USDC.
                     const filteredAssets = assets.filter(a => a.valueUsdc >= MIN_USDC_VALUE);
                     const filteredTotal = filteredAssets.reduce((acc, curr) => acc + curr.valueUsdc, 0);
 
@@ -194,7 +180,7 @@ export function AssetsSection({ address, preview = false }: AssetsSectionProps) 
         };
 
         fetchBalances();
-    }, [address, prices]); // Re-run if address or prices change
+    }, [address, prices, isPreview]);
 
     const formatCurrencyUsd = (val: number) =>
         new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(val);
@@ -240,7 +226,6 @@ export function AssetsSection({ address, preview = false }: AssetsSectionProps) 
 
     return (
         <div className="space-y-4">
-            {/* Header */}
             {/* Header */}
             <button
                 onClick={handleToggleSection}

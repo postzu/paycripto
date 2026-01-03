@@ -2,7 +2,8 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { useQrCameraScanner, parseEthereumUrl } from '@/presentation/hooks/use-qr-camera-scanner';
+import { useQrCameraScanner } from '@/presentation/hooks/use-qr-camera-scanner';
+import { useTransferHistory } from '@/presentation/hooks/use-transfer-history';
 import { RecipientsList } from '@/presentation/components/cripto/recipients-list';
 import { SendWizard } from '@/presentation/components/cripto/send-wizard';
 import { Button } from '@/presentation/components/ui/button';
@@ -49,14 +50,17 @@ import { RecipientWithAddresses, SelectedRecipient } from '@/presentation/compon
 import QRCode from 'qrcode';
 import { LocaleSwitchNotice } from '@/presentation/components/locale/locale-switcher';
 import { AssetsSection } from '@/presentation/components/cripto/assets-section';
-import { fetchAssetPrice, TESTNET_CHAINS } from '@/lib/currency';
+import { fetchAssetPrice, SUPPORTED_CHAINS } from '@/lib/currency';
+import { YieldCalculator } from '@/lib/yield-calculator';
+import { getAddress, WalletClient, Transport, Chain, Account, PublicClient } from 'viem';
+import { computeYieldFiatAvailable } from './yield-helpers';
 
 type View = 'home' | 'recipients' | 'send' | 'newRecipient';
 type RecipientMode = 'new' | 'existing';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface CriptoPageContentProps {
-    /** Whether this is running in testnet mode */
-    isTestnet?: boolean;
+    // Currently no props needed - can be extended in the future
 }
 
 type NewRecipientFormState = {
@@ -88,9 +92,9 @@ const INITIAL_RECIPIENTS: RecipientWithAddresses[] = [
     },
 ];
 
-const ALLOWED_CHAIN_IDS = new Set<number>(Object.values(TESTNET_CHAINS).map((chain) => chain.id));
-const ALLOWED_CHAIN_LIST = Object.values(TESTNET_CHAINS);
-const DEFAULT_CHAIN_ID = TESTNET_CHAINS.base.id;
+const ALLOWED_CHAIN_IDS = new Set<number>(Object.values(SUPPORTED_CHAINS).map((chain) => chain.id));
+const ALLOWED_CHAIN_LIST = Object.values(SUPPORTED_CHAINS);
+const DEFAULT_CHAIN_ID = SUPPORTED_CHAINS.base.id;
 
 type BaseIconSize = 'sm' | 'md' | 'lg';
 
@@ -224,9 +228,17 @@ type HistoryItem = {
     address?: string; // Simulated address for renaming feature
 };
 
-export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps) {
+export function CriptoPageContent({ }: CriptoPageContentProps) {
     const t = useTranslations();
     const locale = useLocale();
+
+    // Wallet connection - MOVED UP to avoid "used before declaration"
+    const { address, isConnected } = useAccount();
+    const { disconnect } = useDisconnect();
+    const chainId = useChainId();
+    const { data: wagmiWalletClient } = useWalletClient();
+    const wagmiPublicClient = usePublicClient();
+
     const [view, setView] = useState<View>('home');
     const [selectedRecipient, setSelectedRecipient] = useState<SelectedRecipient | null>(null);
     const [recipients, setRecipients] = useState<RecipientWithAddresses[]>(INITIAL_RECIPIENTS);
@@ -269,34 +281,68 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     const [pendingScanAmount, setPendingScanAmount] = useState<string | undefined>(undefined);
     const [pendingScanAsset, setPendingScanAsset] = useState<string | undefined>(undefined);
 
-    // QR Camera Scanner Hook - Following SOLID principles (SRP)
-    const qrScanner = useQrCameraScanner({
-        onScan: useCallback((result) => {
-            setPendingScanAmount(result.amount);
-            setPendingScanAsset(result.asset);
+    const { transfers: historyTransfers } = useTransferHistory(address);
 
-            const existingContact = recipients.find(r =>
-                r.addresses.some(a => a.address.toLowerCase() === result.address.toLowerCase())
+    const normalizeAddress = useCallback((addr: string) => {
+        try {
+            return getAddress(addr.trim());
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const normalizeText = (value: string) =>
+        value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+
+    const shortenWalletAddress = (value: string) =>
+        value.length <= 10 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
+
+    // Unified QR scan result handler
+    const handleScanResult = useCallback((result: { address: string; amount?: string; asset?: string }) => {
+        setPendingScanAmount(result.amount);
+        setPendingScanAsset(result.asset);
+
+        const normalizedAddress = normalizeAddress(result.address);
+        if (!normalizedAddress) return;
+
+        const existingContact = recipients.find(r =>
+            r.addresses.some(a => a.address.toLowerCase() === normalizedAddress.toLowerCase())
+        );
+
+        if (existingContact) {
+            // Find the specific address object to get its ID
+            const matchedAddress = existingContact.addresses.find(
+                a => a.address.toLowerCase() === normalizedAddress.toLowerCase()
             );
 
-            if (existingContact) {
+            if (matchedAddress) {
                 setSelectedRecipient({
-                    id: existingContact.id,
+                    contactId: existingContact.id,
                     name: existingContact.name,
-                    address: result.address,
-                    label: existingContact.addresses.find(
-                        a => a.address.toLowerCase() === result.address.toLowerCase()
-                    )?.label
+                    address: normalizedAddress,
+                    addressId: matchedAddress.id,
+                    label: matchedAddress.label
                 });
                 setView('send');
             } else {
-                setPendingScanAddress(result.address);
+                setPendingScanAddress(normalizedAddress);
                 setShowSaveAddressModal(true);
             }
-        }, [recipients]),
+        } else {
+            setPendingScanAddress(normalizedAddress);
+            setShowSaveAddressModal(true);
+        }
+    }, [recipients, normalizeAddress]);
+
+    // QR Camera Scanner Hook - Following SOLID principles (SRP)
+    const qrScanner = useQrCameraScanner({
+        onScan: handleScanResult,
         normalizeAddress: useCallback((address: string) => {
             try {
-                const { getAddress } = require('viem');
                 return getAddress(address.trim());
             } catch {
                 return null;
@@ -345,10 +391,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
 
 
-    // Wallet connection
-    const { address, isConnected } = useAccount();
-    const { disconnect } = useDisconnect();
-    const chainId = useChainId();
+    // Wallet connection state
     const { chains: switchableChains, switchChain, isPending: isSwitchingChain } = useSwitchChain();
     const isAllowedChain = !chainId || ALLOWED_CHAIN_IDS.has(chainId);
     const networkBlocked = isConnected && !!chainId && !isAllowedChain;
@@ -359,10 +402,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     // USDC balance with fiat conversion
     const { usdcBalance, fiatValue, fiatSymbol, fiatCode, isLoading: isLoadingBalance } = useUsdcBalance(locale);
 
-    // Wagmi Clients for Paymaster
-    // Wagmi Clients for Paymaster
-    const { data: wagmiWalletClient } = useWalletClient();
-    const wagmiPublicClient = usePublicClient();
 
 
 
@@ -428,8 +467,43 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     // Sub-modal para criar novo contato dentro do modal de grupo
     const [isGroupNewContactOpen, setIsGroupNewContactOpen] = useState(false);
     const [groupNewContact, setGroupNewContact] = useState({ name: '', address: '', label: '' });
+
+    const currencyFormatter = useMemo(() => {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: fiatCode || 'BRL',
+        });
+    }, [locale, fiatCode]);
+
+    const numberFormatter = useMemo(() => {
+        return new Intl.NumberFormat(locale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6,
+        });
+    }, [locale]);
+
+    const formatCurrency = useCallback((value: number) => {
+        return currencyFormatter.format(value);
+    }, [currencyFormatter]);
     const parsedBalance = Number.parseFloat(usdcBalance || '0');
     const hasBalance = Number.isFinite(parsedBalance) && parsedBalance > 0;
+    const yieldAvailablePrefix = t('Home.yield.availablePrefix');
+    const zeroBalanceYieldMessage = t('Home.yield.zeroBalanceMessage');
+    const yieldFiatAvailable = useMemo(
+        () =>
+            computeYieldFiatAvailable({
+                showBalance,
+                isLoadingBalance,
+                hasBalance,
+                fiatValue,
+                formatter: currencyFormatter,
+                zeroBalanceMessage: zeroBalanceYieldMessage,
+                availablePrefix: `${yieldAvailablePrefix} `,
+                percentage: 0.3,
+            }),
+        [showBalance, isLoadingBalance, hasBalance, fiatValue, currencyFormatter, zeroBalanceYieldMessage, yieldAvailablePrefix]
+    );
+    const yieldAvailableDisplay = yieldFiatAvailable.showApproxSymbol ? `≈ ${yieldFiatAvailable.display}` : yieldFiatAvailable.display;
     const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdcBalance) : '*****';
     const showFiatLine = showBalance && !isLoadingBalance;
     const balanceToggleLabel = showBalance ? t('Home.balance.hide') : t('Home.balance.show');
@@ -545,68 +619,22 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
             initial: 'T'
         }
     ];
-    const currencyFormatter = useMemo(() => {
-        try {
-            return new Intl.NumberFormat(locale, {
-                style: 'currency',
-                currency: fiatCode || 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-        } catch {
-            return new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-        }
-    }, [fiatCode, locale]);
-    const numberFormatter = useMemo(
-        () =>
-            new Intl.NumberFormat(locale, {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-            }),
-        [locale]
-    );
-    const formatCurrency = (value: number) => currencyFormatter.format(value);
     const historyItems = useMemo<HistoryItem[]>(
-        () => [
-            {
-                id: 'tx-1',
-                title: t('Home.historySection.sample.incoming'),
-                helper: `${defaultNetworkName} - Empresa X`,
-                address: '0x123...abc', // Mock address
-                amount: 320,
-                token: 'USDC',
-                direction: 'in',
-                date: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago
-                fiatRate: 5.82,
-            },
-            {
-                id: 'tx-2',
+        () => {
+            if (!historyTransfers) return [];
+            return historyTransfers.map(tx => ({
+                id: tx.id,
                 title: t('Home.historySection.sample.outgoing'),
-                helper: `${defaultNetworkName} - Joao Santos`,
-                address: '0x456...def', // Mock address
-                amount: 45,
-                token: 'USDC',
+                helper: tx.recipientName || (tx.recipientAddress ? shortenWalletAddress(tx.recipientAddress) : 'Enviado'),
+                address: tx.recipientAddress,
+                amount: parseFloat(tx.amount),
+                token: tx.token,
                 direction: 'out',
-                date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1.5).toISOString(), // 1.5 days ago
-                fiatRate: 5.79,
-            },
-            {
-                id: 'tx-3',
-                title: t('Home.historySection.sample.deposit'),
-                helper: `${defaultNetworkName} - On-ramp`,
-                amount: 180,
-                token: 'USDC',
-                direction: 'in',
-                date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
-                fiatRate: 5.75,
-            },
-        ],
-        [defaultNetworkName, t]
+                date: tx.createdAt instanceof Date ? tx.createdAt.toISOString() : tx.createdAt,
+                fiatRate: tx.fiatRate || 0,
+            }));
+        },
+        [historyTransfers, t]
     );
 
     // Yield Calculation
@@ -636,24 +664,6 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         );
     }, [usdcBalance, fiatValue, isLoadingBalance, historyItems]);
 
-    const futureYieldResult = useMemo(() => {
-        if (!usdcBalance || isLoadingBalance) return null;
-        const currentBalance = Number.parseFloat(usdcBalance);
-        const currentFiat = Number.parseFloat(fiatValue.replace(/[^0-9.-]+/g, ''));
-        const currentRate = currentBalance > 0 ? currentFiat / currentBalance : 0;
-
-        if (currentBalance <= 0) return null;
-
-        const annualYieldUsdc = currentBalance * 0.06;
-        const annualYieldFiat = annualYieldUsdc * currentRate;
-
-        return {
-            annualYieldUsdc,
-            annualYieldFiat,
-            formattedFiat: currencyFormatter.format(annualYieldFiat)
-        };
-    }, [usdcBalance, fiatValue, isLoadingBalance, currencyFormatter]);
-
     // Pending assets: until we fetch real token balances, keep it empty to avoid fake values
     const pendingAssets = useMemo<PendingAsset[]>(() => [], []);
     const pendingAssetsTotal = useMemo(
@@ -672,23 +682,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         []
     );
     const targetChainName = defaultChainOption?.name || defaultNetworkName;
-    const normalizeAddress = (value: string) => {
-        try {
-            return getAddress(value.trim());
-        } catch {
-            return null;
-        }
-    };
-    const normalizeText = (value: string) =>
-        value
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .trim();
-    const selectedContact = useMemo(
-        () => recipients.find((recipient) => recipient.id === newRecipient.contactId),
-        [recipients, newRecipient.contactId]
-    );
+    const selectedContact = useMemo(() => recipients.find((recipient) => recipient.id === newRecipient.contactId), [recipients, newRecipient.contactId]);
     const normalizedFormAddress = normalizeAddress(newRecipient.address);
     const matchingExistingRecipients = useMemo(() => {
         if (newRecipient.mode !== 'new') return [];
@@ -701,8 +695,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
     }, [newRecipient.mode, newRecipient.name, recipients]);
 
     const createId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-    const shortenWalletAddress = (value: string) =>
-        value.length <= 10 ? value : `${value.slice(0, 6)}...${value.slice(-4)}`;
+
     const getInitials = (name: string) =>
         name
             .split(' ')
@@ -888,12 +881,13 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         const scanId = `PAY-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
         const simulatedBlock = Math.floor(Math.random() * 1000000) + 18000000;
 
-        setScanDetails({
-            id: scanId,
-            date: dateStr,
-            time: timeStr,
-            block: simulatedBlock
-        });
+        // setScanDetails removed as it is undefined
+        // setScanDetails({
+        //    id: scanId,
+        //    date: dateStr,
+        //    time: timeStr,
+        //    block: simulatedBlock
+        // });
 
         const metadataHeader = [
             `# PayCrypto Scan: ${scanId}`,
@@ -1141,45 +1135,26 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
         };
     }, []);
 
-    const handleConfirmSend = async (data: { asset: string; amount: string; chainId: number }) => {
+    const handleConfirmSend = async (data: { asset: string; amount: string; chainId: number }): Promise<string> => {
         if (networkBlocked) {
-            return;
+            throw new Error('Network blocked');
         }
-
-        const recipientName = selectedRecipient?.name ?? '';
-        const confirmMessage = t('Send.confirmPrompt', {
-            amount: data.amount,
-            asset: data.asset,
-            name: recipientName,
-        });
-
-        const isConfirmed = typeof window === 'undefined' ? true : window.confirm(confirmMessage);
-        if (!isConfirmed) return;
 
         try {
             // Import dynamically to avoid loading on server
             const { createSmartWalletClient } = await import('@/lib/paymaster');
-            // const { getPublicClient, getWalletClient } = await import('@wagmi/core');
-            // const { config } = await import('@/presentation/providers/web3-provider'); 
-            const { getAddress } = await import('viem'); // Import everything needed
+            const { getAddress, encodeFunctionData, parseUnits, erc20Abi: viemErc20Abi } = await import('viem');
+            const { BASE_USDC_ADDRESS, erc20Abi: usdcAbi } = await import('@/config/baseUsdc');
+            const { signUsdcPermit } = await import('@/lib/usdc-permit');
 
-            // We need the wallet client. since we are in a click handler, we can fetch it async if not available in state.
-            // However, useWalletClient hook is better. Let's assume we add it to the component.
-            // For now, to minimize component refactor, we attempt to get it from wagmi core actions if possible, 
-            // or better, rely on the hook I will add.
+            if (!wagmiWalletClient || !wagmiWalletClient.account) throw new Error('Wallet not connected');
 
-            // We need the wallet client. since we are in a click handler, we can fetch it async if not available in state.
-            // However, useWalletClient hook is better. Let's assume we add it to the component.
-            // For now, to minimize component refactor, we attempt to get it from wagmi core actions if possible, 
-            // or better, rely on the hook I will add.
+            const { smartAccountClient } = await createSmartWalletClient(
+                wagmiWalletClient as WalletClient<Transport, Chain, Account>,
+                wagmiPublicClient as PublicClient
+            );
 
-            if (!wagmiWalletClient) throw new Error('Wallet not connected');
-
-            const { smartAccountClient } = await createSmartWalletClient(wagmiWalletClient, wagmiPublicClient);
-
-            // Construct the transaction
-            // If asset is ETH/Native
-            let txHash;
+            let txHash: `0x${string}`;
 
             if (data.asset === 'ETH') {
                 txHash = await smartAccountClient.sendTransaction({
@@ -1188,34 +1163,65 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                     data: '0x'
                 });
             } else if (data.asset === 'USDC') {
-                // ERC20 Transfer
-                // We need the USDC contract address. 
-                const tokenAddress = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; // Base Sepolia
+                const tokenAddress = getAddress(BASE_USDC_ADDRESS);
+                const owner = wagmiWalletClient.account.address;
+                const spender = '0x2B1D6F09794E2F1B057a661643c7956B36e2f69D'; // Circle Paymaster v0.7 address on Base
 
-                // Encode transfer(to, amount)
-                const { encodeFunctionData, parseUnits, erc20Abi } = await import('viem');
+                // 1. Fetch Nonce
+                const { readContract } = await import('@wagmi/core');
+                const { config } = await import('@/presentation/providers/web3-provider');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const nonce = await readContract(config as any, {
+                    address: tokenAddress,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    abi: usdcAbi as any,
+                    functionName: 'nonces',
+                    args: [owner],
+                }) as bigint;
+
+                // 2. Define Value and Deadline
+                const value = parseUnits(data.amount, 6);
+                const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour
+
+                // 3. Sign Permit
+                const signature = await signUsdcPermit(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    wagmiWalletClient as any,
+                    owner,
+                    spender,
+                    value,
+                    deadline,
+                    nonce
+                );
+
+                // 4. Encode transfer
                 const callData = encodeFunctionData({
-                    abi: erc20Abi,
+                    abi: viemErc20Abi,
                     functionName: 'transfer',
-                    args: [getAddress(selectedRecipient!.address), parseUnits(data.amount, 6)] // USDC has 6 decimals
+                    args: [getAddress(selectedRecipient!.address), value]
                 });
 
-                txHash = await smartAccountClient.sendTransaction({
+                // 5. Send Transaction with Paymaster Context
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                txHash = await (smartAccountClient as any).sendTransaction({
                     to: tokenAddress,
-                    value: 0n,
-                    data: callData
+                    value: BigInt(0),
+                    data: callData,
+                    paymasterContext: {
+                        permit: signature,
+                        deadline,
+                        nonce
+                    }
                 });
             } else {
-                throw new Error('Unsupported asset for Paymaster demo');
+                throw new Error('Unsupported asset');
             }
 
-            alert(`Transaction sent via Circle Paymaster! UserOp Hash: ${txHash}`);
-            setView('home');
-            setSelectedRecipient(null);
+            return txHash;
 
         } catch (error) {
-            console.error('Paymaster transaction failed:', error);
-            alert(`Error sending transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('Transaction failed:', error);
+            throw error;
         }
     };
 
@@ -1238,9 +1244,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
                     ctx.drawImage(img, 0, 0);
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const result = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'attemptBoth',
-                    });
+                    const result = jsQR(imageData.data, imageData.width, imageData.height);
 
                     if (!result) {
                         reject(new Error('Nenhum QR Code encontrado na imagem.'));
@@ -1266,13 +1270,13 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
 
         try {
             const qrText = await decodeQrFromFile(file);
-            // Reuse the same parsing used for camera scans
-            handleScanResult(qrText);
+            const { parseEthereumUrl } = await import('@/presentation/hooks/use-qr-camera-scanner');
+            const result = parseEthereumUrl(qrText);
+            handleScanResult(result);
             setQrStatus({ isReading: false, error: null });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Erro ao ler QR Code.';
             setQrStatus({ isReading: false, error: message });
-            setCameraError(message);
         } finally {
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -1297,7 +1301,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                 prev.map((recipient) => {
                     if (recipient.id !== targetContactId) return recipient;
 
-                    const label = newRecipient.label || `Carteira ${recipient.addresses.length + 1}`;
+                    const label = newRecipient.label || `Carteira ${recipient.addresses.length + 1} `;
                     const newAddress = { id: createId('addr'), address: normalizedAddress, label };
 
                     return { ...recipient, addresses: [...recipient.addresses, newAddress] };
@@ -1349,7 +1353,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                     : t('Recipients.newRecipientTitle');
 
     return (
-        <div className={`min-h-screen bg-dark text-white font-sans ${isTestnet ? 'pt-10' : ''} flex flex-col`}>
+        <div className="min-h-screen bg-dark text-white font-sans flex flex-col">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-dark/90 backdrop-blur-lg border-b border-white/10">
                 <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
@@ -1452,7 +1456,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         className={`relative overflow-hidden border ${hasBalance
                                             ? 'border-0 bg-gradient-to-br from-primary via-primary/80 to-secondary p-6'
                                             : 'border-white/10 bg-white/5 p-4'
-                                            }`}
+                                            } `}
                                     >
                                         <div className="relative z-10 space-y-3">
                                             <div className="flex items-start justify-between gap-3">
@@ -1538,36 +1542,39 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     </Card>
 
                                     {/* Yield Section (99Pay Style) */}
-                                    {hasBalance && futureYieldResult && (
-                                        <button
-                                            onClick={() => setShowYieldModal(true)}
-                                            className="w-full text-left group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-[0.98]"
-                                        >
-                                            <div className="relative z-10 flex items-center justify-between gap-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
-                                                        <ArrowUpRight size={20} strokeWidth={2.5} />
-                                                    </div>
-                                                    <div className="space-y-0.5">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <p className="text-sm font-semibold text-white/90">{t('Home.yield.title')}</p>
-                                                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
-                                                                {t('Home.yield.estimatedRate')}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-xs text-white/50">{t('Home.yield.subtitle')}</p>
-                                                    </div>
+                                    <button
+                                        onClick={() => setShowYieldModal(true)}
+                                        className="w-full text-left group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-[0.98]"
+                                    >
+                                        <div className="relative z-10 flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                                                    <ArrowUpRight size={20} strokeWidth={2.5} />
                                                 </div>
-                                                <div className="flex flex-col items-end text-right">
-                                                    <p className="text-sm font-bold text-white">~ {futureYieldResult.formattedFiat}</p>
-                                                    <p className="text-[10px] text-white/40">{t('Home.yield.fiatSuffix')}</p>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <p className="text-sm font-semibold text-white/90">{t('Home.yield.title')}</p>
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                                                            {t('Home.yield.estimatedRate')}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-white/60 leading-relaxed">
+                                                        {t('Home.yield.subtitle')}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                <ArrowUpRight size={60} strokeWidth={2} />
+                                            <div className="flex flex-col items-end text-right">
+                                                <span className="text-[11px] uppercase tracking-[0.14em] text-white/50">
+                                                    {t('Home.yield.availableLabel')}
+                                                </span>
+                                                <p className="text-xl font-bold text-white leading-tight">{yieldAvailableDisplay}</p>
+                                                <p className="text-[10px] text-white/40">{t('Home.yield.fiatSuffix')}</p>
                                             </div>
-                                        </button>
-                                    )}
+                                        </div>
+                                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                            <ArrowUpRight size={60} strokeWidth={2} />
+                                        </div>
+                                    </button>
                                 </>
                             ) : (
                                 <Card className="bg-dark-surface border border-white/10 p-6 text-center">
@@ -1588,20 +1595,20 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                             <button
                                 onClick={() => isConnected && setIsDepositOpen(true)}
                                 disabled={!isConnected}
-                                className={`w-full group relative overflow-hidden rounded-2xl bg-white text-black p-4 transition-all ${isConnected ? 'hover:brightness-110 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
-                                    }`}
+                                className={`w-full group relative overflow-hidden rounded-2xl bg-white text-black p-6 transition-all ${isConnected ? 'hover:brightness-110 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                                    } `}
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Plus size={80} strokeWidth={2} />
+                                    <Plus size={120} strokeWidth={2} />
                                 </div>
                                 <div className="flex items-center justify-between relative z-10">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-800 text-white">
-                                            <Plus size={20} strokeWidth={2} />
+                                    <div className="flex items-center gap-5">
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-800 text-white">
+                                            <Plus size={28} strokeWidth={2} />
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-lg font-bold leading-tight uppercase tracking-tight">{t('Home.actions.deposit')}</p>
-                                            <p className="text-xs font-medium text-black/60">{t('Home.actions.depositHelper')}</p>
+                                            <p className="text-2xl font-bold leading-tight uppercase tracking-tight">{t('Home.actions.deposit')}</p>
+                                            <p className="text-sm font-medium text-black/60">{t('Home.actions.depositHelper')}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1612,8 +1619,8 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <button
                                     onClick={() => isConnected && setIsReceiveOpen(true)}
                                     disabled={!isConnected}
-                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-transparent p-4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
-                                        }`}
+                                    className={`flex flex-col items-center justify-center gap - 2 rounded-2xl bg - transparent p - 4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                                        } `}
                                 >
                                     <StandardIcon icon={ArrowDown} />
                                     <span className="text-sm font-medium text-white">{t('Home.actions.receive')}</span>
@@ -1622,8 +1629,8 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <button
                                     onClick={() => isConnected && setView('recipients')}
                                     disabled={!isConnected}
-                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-transparent p-4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
-                                        }`}
+                                    className={`flex flex-col items-center justify-center gap - 2 rounded-2xl bg - transparent p - 4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                                        } `}
                                 >
                                     <StandardIcon icon={ArrowUpRight} />
                                     <span className="text-sm font-medium text-white">{t('Home.actions.transfer')}</span>
@@ -1632,8 +1639,8 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <button
                                     onClick={() => isConnected && setIsQrScanModalOpen(true)}
                                     disabled={!isConnected}
-                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-transparent p-4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
-                                        }`}
+                                    className={`flex flex-col items-center justify-center gap - 2 rounded-2xl bg - transparent p - 4 transition-all ${isConnected ? 'hover:bg-white/10 active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                                        } `}
                                 >
                                     <StandardIcon icon={ScanLine} />
                                     <span className="text-sm font-medium text-white">QR Code</span>
@@ -1654,7 +1661,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 <button
                                                     onClick={() => !isPreview && setIsGroupsOpen(!isGroupsOpen)}
                                                     disabled={isPreview}
-                                                    className={`text-xs font-medium ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/60 hover:text-white transition-colors'}`}
+                                                    className={`text-xs font-medium ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/60 hover:text-white transition-colors'} `}
                                                 >
                                                     {isGroupsOpen ? 'Mostrar menos' : 'Ver todos'}
                                                 </button>
@@ -1664,7 +1671,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                         handleOpenCreateGroup();
                                                     }}
                                                     disabled={isPreview}
-                                                    className={`flex h-7 w-7 items-center justify-center rounded-full ${isPreview ? 'bg-white/5 text-white/30 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20 text-white transition-colors'}`}
+                                                    className={`flex h - 7 w - 7 items-center justify-center rounded-full ${isPreview ? 'bg-white/5 text-white/30 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20 text-white transition-colors'} `}
                                                     title={t('Home.paymentGroups.create')}
                                                 >
                                                     <Plus size={14} />
@@ -1709,7 +1716,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                         >
                                                             <div className="flex items-center justify-between gap-3">
                                                                 <div className="flex items-center gap-3 overflow-hidden">
-                                                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${bgColor} text-white/90`}>
+                                                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${bgColor} text-white/80`}>
                                                                         <span className="text-sm font-bold">{group.name.charAt(0).toUpperCase()}</span>
                                                                     </div>
                                                                     <div className="space-y-0.5 min-w-0">
@@ -1730,7 +1737,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                                             e.stopPropagation();
                                                                             handleExportGroup(group);
                                                                         }}
-                                                                        className={`h-8 px-3 text-xs font-medium ${isPreview ? 'text-white/40 bg-white/5 cursor-not-allowed' : 'text-white/80 hover:text-white bg-white/5 hover:bg-white/10'}`}
+                                                                        className={`h-8 px-3 text-xs font-medium ${isPreview ? 'text-white/40 bg-white/5 cursor-not-allowed' : 'text-white/80 hover:text-white bg-white/5 hover:bg-white/10'} `}
                                                                     >
                                                                         Exportar
                                                                     </Button>
@@ -1741,7 +1748,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                                             e.stopPropagation();
                                                                             handleOpenEditGroup(group);
                                                                         }}
-                                                                        className={`p-1.5 rounded-full ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/40 hover:text-white hover:bg-white/10 transition-colors'}`}
+                                                                        className={`p-1.5 rounded-full ${isPreview ? 'text-white/30 cursor-not-allowed' : 'text-white/40 hover:text-white hover:bg-white/10 transition-colors'} `}
                                                                     >
                                                                         <MoreHorizontal size={18} />
                                                                     </button>
@@ -1768,7 +1775,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         type="button"
                                         onClick={() => setIsHistoryOpen((prev) => !prev)}
                                         className={`w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg ${isHistoryOpen ? 'bg-white/5' : 'hover:bg-white/5'
-                                            }`}
+                                            } `}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="">
@@ -1780,7 +1787,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         </div>
                                         <ChevronDown
                                             size={16}
-                                            className={`text-white/40 transition-transform duration-200 ${isHistoryOpen ? 'rotate-180' : ''}`}
+                                            className={`text-white/40 transition-transform duration-200 ${isHistoryOpen ? 'rotate-180' : ''} `}
                                         />
                                     </button>
                                     <AnimatePresence initial={false}>
@@ -1796,7 +1803,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                         <p className="text-xs text-white/50">{t('Home.historySection.empty')}</p>
                                                     ) : (
                                                         historyItems.map((item) => {
-                                                            const amountLabel = `${item.direction === 'out' ? '-' : '+'} ${numberFormatter.format(item.amount)} ${item.token}`;
+                                                            const amountLabel = `${item.direction === 'out' ? '-' : '+'} ${numberFormatter.format(item.amount)} ${item.token} `;
                                                             const fiatAmount = item.amount * item.fiatRate;
                                                             const formattedFiat = currencyFormatter.format(fiatAmount);
                                                             const dateObj = new Date(item.date);
@@ -1809,7 +1816,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                                     className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
                                                                 >
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${item.direction === 'in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/8 text-white/70'}`}>
+                                                                        <div className={`flex h - 8 w - 8 items-center justify-center rounded-full ${item.direction === 'in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/8 text-white/70'} `}>
                                                                             {item.direction === 'in' ? <ArrowDownLeft size={16} strokeWidth={1.75} /> : <ArrowUpRight size={16} strokeWidth={1.75} />}
                                                                         </div>
                                                                         <div className="text-left group/item relative">
@@ -1853,7 +1860,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex flex-col items-end">
-                                                                        <span className={`text-sm font-semibold ${item.direction === 'out' ? 'text-white/80' : 'text-emerald-300'}`}>
+                                                                        <span className={`text-sm font - semibold ${item.direction === 'out' ? 'text-white/80' : 'text-emerald-300'} `}>
                                                                             {amountLabel}
                                                                         </span>
                                                                         <span className="text-[10px] text-white/40">
@@ -1968,6 +1975,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 onConfirm={handleConfirmSend}
                                 initialAmount={pendingScanAmount}
                                 initialAsset={pendingScanAsset}
+                                senderAddress={address || ''}
                             />
                         </motion.div>
                     )}
@@ -2432,7 +2440,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             onClick={() => handleProviderClick(provider)}
                                             className="w-full group relative flex items-center gap-4 rounded-2xl border border-white/10 bg-white p-4 transition-all hover:brightness-110 active:scale-[0.98]"
                                         >
-                                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${provider.bgColor} ${provider.textColor} text-xl font-bold shadow-sm`}>
+                                            <div className={`flex h - 12 w - 12 shrink-0 items-center justify-center rounded-xl ${provider.bgColor} ${provider.textColor} text-xl font-bold shadow-sm`}>
                                                 {provider.initial}
                                             </div>
                                             <div className="flex-1 text-left">
@@ -2457,7 +2465,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-white">
                                                 {depositRoutes.recommended.route.split('->').map((segment, index, arr) => (
-                                                    <div key={`${segment}-${index}`} className="flex items-center gap-2">
+                                                    <div key={`${segment} -${index} `} className="flex items-center gap-2">
                                                         <span className="rounded-full bg-black/30 px-2 py-1 uppercase tracking-wide text-[11px] border border-white/15">
                                                             {segment.trim()}
                                                         </span>
@@ -2471,7 +2479,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     <div className="mt-3 space-y-2">
                                         {depositRoutes.recommended.bullets.map((bullet) => (
                                             <div key={bullet.text} className="flex items-center gap-2 text-sm text-white/85">
-                                                <span className={`h-2 w-2 rounded-full ${bulletToneClass(bullet.tone)}`} />
+                                                <span className={`h - 2 w - 2 rounded-full ${bulletToneClass(bullet.tone)} `} />
                                                 <span>{bullet.text}</span>
                                             </div>
                                         ))}
@@ -2509,7 +2517,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             {depositRoutes.alternatives.options.map((option) => (
                                                 <div
                                                     key={option.title}
-                                                    className={`rounded-lg border p-3 ${option.ctaLabel ? 'border-primary/35 bg-primary/5 shadow-lg shadow-primary/10' : 'border-white/10 bg-white/5'}`}
+                                                    className={`rounded-lg border p - 3 ${option.ctaLabel ? 'border-primary/35 bg-primary/5 shadow-lg shadow-primary/10' : 'border-white/10 bg-white/5'} `}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="space-y-1">
@@ -2520,7 +2528,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                     <div className="mt-2 space-y-1.5">
                                                         {option.bullets.map((bullet) => (
                                                             <div key={bullet.text} className="flex items-center gap-2 text-sm text-white/80">
-                                                                <span className={`h-2 w-2 rounded-full ${bulletToneClass(bullet.tone)}`} />
+                                                                <span className={`h - 2 w - 2 rounded-full ${bulletToneClass(bullet.tone)} `} />
                                                                 <span>{bullet.text}</span>
                                                             </div>
                                                         ))}
@@ -2585,7 +2593,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                 <X size={20} />
                             </button>
 
-                            <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-3xl ${selectedProvider.bgColor} text-white shadow-xl`}>
+                            <div className={`mx - auto flex h - 20 w - 20 items-center justify-center rounded - 3xl ${selectedProvider.bgColor} text-white shadow-xl`}>
                                 <span className="text-4xl font-bold">{selectedProvider.initial}</span>
                             </div>
 
@@ -2731,10 +2739,10 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     <button
                                         type="button"
                                         onClick={() => setGroupForm({ ...groupForm, exportToken: 'USDC' })}
-                                        className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 transition-colors ${groupForm.exportToken === 'USDC'
+                                        className={`flex items-center justify-center gap - 2 rounded-lg border px - 4 py - 3 transition-colors ${groupForm.exportToken === 'USDC'
                                             ? 'border-primary bg-primary/10 text-white'
                                             : 'border-white/10 bg-black/20 text-white/60 hover:bg-black/40'
-                                            }`}
+                                            } `}
                                     >
                                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0052FF] text-[10px] font-bold text-white">
                                             $
@@ -2742,17 +2750,17 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         <span className="text-sm font-medium">USDC (Dólar)</span>
                                         {groupForm.exportToken === 'USDC' && (
                                             <span className="ml-auto text-[10px] opacity-70">
-                                                {isExportRateLoading ? '...' : currentExportRate ? `1 USDC ≈ ${currencyFormatter.format(currentExportRate)}` : ''}
+                                                {isExportRateLoading ? '...' : currentExportRate ? `1 USDC ≈ ${currencyFormatter.format(currentExportRate)} ` : ''}
                                             </span>
                                         )}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setGroupForm({ ...groupForm, exportToken: 'ETH' })}
-                                        className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 transition-colors ${groupForm.exportToken === 'ETH'
+                                        className={`flex items-center justify-center gap - 2 rounded-lg border px - 4 py - 3 transition-colors ${groupForm.exportToken === 'ETH'
                                             ? 'border-primary bg-primary/10 text-white'
                                             : 'border-white/10 bg-black/20 text-white/60 hover:bg-black/40'
-                                            }`}
+                                            } `}
                                     >
                                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#627EEA] text-[10px] font-bold text-white">
                                             Ξ
@@ -2760,7 +2768,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         <span className="text-sm font-medium">ETH (Ether)</span>
                                         {groupForm.exportToken === 'ETH' && (
                                             <span className="ml-auto text-[10px] opacity-70">
-                                                {isExportRateLoading ? '...' : currentExportRate ? `1 ETH ≈ ${currencyFormatter.format(currentExportRate)}` : ''}
+                                                {isExportRateLoading ? '...' : currentExportRate ? `1 ETH ≈ ${currencyFormatter.format(currentExportRate)} ` : ''}
                                             </span>
                                         )}
                                     </button>
@@ -2824,11 +2832,11 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                     type="button"
                                                     disabled={isDisabled}
                                                     onClick={() => handleToggleContactInGroup(contact)}
-                                                    className={`w-full rounded-xl border px-3 py-3 text-left transition ${isSelected ? 'border-primary bg-primary/10' : 'border-white/10 bg-black/30 hover:border-white/20 hover:bg-black/40'} ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                    className={`w-full rounded-xl border px - 3 py - 3 text - left transition ${isSelected ? 'border-primary bg-primary/10' : 'border-white/10 bg-black/30 hover:border-white/20 hover:bg-black/40'} ${isDisabled ? 'cursor-not-allowed opacity-50' : ''} `}
                                                 >
                                                     <div className="flex items-start gap-3">
                                                         <span
-                                                            className={`mt-1 flex h-4 w-4 items-center justify-center rounded border ${isSelected ? 'border-primary bg-primary text-black' : 'border-white/40 text-white/60'} ${isDisabled ? 'border-white/20' : ''}`}
+                                                            className={`mt - 1 flex h - 4 w - 4 items-center justify-center rounded border ${isSelected ? 'border-primary bg-primary text-black' : 'border-white/40 text-white/60'} ${isDisabled ? 'border-white/20' : ''} `}
                                                         >
                                                             {isSelected && <Check size={12} />}
                                                         </span>
@@ -3123,7 +3131,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             <span className="text-[10px] uppercase tracking-wider text-white/50">Cotação ({lastExportedToken})</span>
                                             <span className="text-sm font-semibold text-white/80">
                                                 {lastExportedRate
-                                                    ? `1 ${lastExportedToken} ≈ ${currencyFormatter.format(lastExportedRate)}`
+                                                    ? `1 ${lastExportedToken} ≈ ${currencyFormatter.format(lastExportedRate)} `
                                                     : 'Calculando...'}
                                             </span>
                                         </div>
@@ -3179,7 +3187,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                                 onClick={() => openMultisendApp(app.url)}
                                                 className="w-full group relative flex items-center gap-4 rounded-2xl border border-white/10 bg-white p-4 transition-all hover:brightness-110 active:scale-[0.98]"
                                             >
-                                                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${app.bgColor || 'bg-slate-500'} ${app.textColor || 'text-white'} text-xl font-bold shadow-sm`}>
+                                                <div className={`flex h - 12 w - 12 shrink-0 items-center justify-center rounded-xl ${app.bgColor || 'bg-slate-500'} ${app.textColor || 'text-white'} text-xl font-bold shadow-sm`}>
                                                     {app.initial}
                                                 </div>
                                                 <div className="flex-1 text-left">
@@ -3542,7 +3550,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                             <ExternalLink size={12} className="text-white/30" />
                                         </a>
                                         <a
-                                            href="https://app.uniswap.org/explore/pools/base/0xd0bDe473E72a9F0054ff0911feDC694589326889"
+                                            href="https://app.uniswap.org/positions/create/v3?currencyA=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&currencyB=0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf&chain=base&fee={%22feeAmount%22:500,%22tickSpacing%22:10,%22isDynamic%22:false}&hook=undefined&priceRangeState={%22priceInverted%22:false,%22fullRange%22:false,%22minPrice%22:%22%22,%22maxPrice%22:%22%22,%22initialPrice%22:%22%22,%22inputMode%22:%22price%22}&depositState={%22exactField%22:%22TOKEN0%22,%22exactAmounts%22:{}}"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
@@ -3641,7 +3649,7 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                         <AlertTriangle className="mx-auto text-amber-500" size={40} />
                                         <p className="text-white/80">{cameraError}</p>
                                         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                                            <Button variant="secondary" onClick={() => startCamera()}>
+                                            <Button variant="secondary" onClick={() => setIsQrScanModalOpen(true)}>
                                                 Tentar novamente
                                             </Button>
                                             <Button onClick={() => setIsQrScanModalOpen(false)}>Fechar</Button>
@@ -3736,9 +3744,10 @@ export function CriptoPageContent({ isTestnet = false }: CriptoPageContentProps)
                                     onClick={() => {
                                         // Skip saving, just go to send wizard
                                         const tempRecipient: SelectedRecipient = {
-                                            id: 'temp-' + Date.now(),
+                                            contactId: 'temp-' + Date.now(),
                                             name: 'Endereço Escaneado',
-                                            address: pendingScanAddress,
+                                            address: pendingScanAddress || '',
+                                            addressId: 'temp-addr-' + Date.now(),
                                             label: 'QR Code'
                                         };
                                         setSelectedRecipient(tempRecipient);

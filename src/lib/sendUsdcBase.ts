@@ -29,9 +29,89 @@ export class InsufficientGasError extends Error {
     }
 }
 
+export class InvalidAddressError extends Error {
+    constructor() {
+        super('Endereço de destino inválido (checksum falhou).');
+        this.name = 'InvalidAddressError';
+    }
+}
+
+/**
+ * Validates and returns the checksummed address.
+ * Throws InvalidAddressError if invalid.
+ */
+function validateAddress(address: string): string {
+    try {
+        return ethers.getAddress(address);
+    } catch {
+        throw new InvalidAddressError();
+    }
+}
+
+/**
+ * Estimates the gas cost for a USDC transfer.
+ * Returns the estimated fee in ETH (as a string).
+ */
+export async function estimateEthFeeAsEth({ to, amount }: SendUsdcParams): Promise<string> {
+    const signer = await getBaseSigner();
+
+    // Validate address
+    const toAddress = validateAddress(to);
+
+    const usdc = new ethers.Contract(
+        BASE_USDC_ADDRESS,
+        extendedErc20Abi,
+        signer
+    );
+
+    // Get decimals
+    let decimals = 6;
+    try {
+        decimals = await usdc.decimals();
+    } catch {
+        decimals = 6;
+    }
+
+    const value = ethers.parseUnits(amount, decimals);
+
+    // Estimate gas limit
+    let gasLimit: bigint;
+    try {
+        gasLimit = await usdc.transfer.estimateGas(toAddress, value);
+    } catch (error: unknown) {
+        const err = error as Record<string, unknown>;
+        const message = typeof err?.message === 'string' ? err.message.toLowerCase() : '';
+
+        if (message.includes('insufficient funds') && !message.includes('transfer amount')) {
+            throw new InsufficientGasError();
+        }
+
+        // Fallback for estimation failure: use a safe default for ERC20 transfer
+        // usually 65000 is enough for a transfer
+        console.warn('[estimateUsdcGas] Estimation failed, using fallback:', error);
+        gasLimit = BigInt(65000);
+    }
+
+    // Get fee data (gas price)
+    // Ethers v6 uses getFeeData()
+    const feeData = await signer.provider?.getFeeData();
+    const gasPrice = feeData?.gasPrice ?? BigInt(0);
+
+    // Calculate total fee in Wei
+    const totalFeeWei = gasLimit * gasPrice;
+
+    // Convert to ETH
+    return ethers.formatEther(totalFeeWei);
+}
+
+export const estimateUsdcGas = estimateEthFeeAsEth;
+
 export async function sendUsdcOnBase({ to, amount }: SendUsdcParams): Promise<string> {
     const signer = await getBaseSigner();
     const signerAddress = await signer.getAddress();
+
+    // Validate address
+    const toAddress = validateAddress(to);
 
     const usdc = new ethers.Contract(
         BASE_USDC_ADDRESS,
@@ -68,7 +148,7 @@ export async function sendUsdcOnBase({ to, amount }: SendUsdcParams): Promise<st
 
     // Pre-flight check: estimate gas to catch insufficient ETH early
     try {
-        await usdc.transfer.estimateGas(to, value);
+        await usdc.transfer.estimateGas(toAddress, value);
     } catch (error: unknown) {
         const err = error as Record<string, unknown>;
         const message = typeof err?.message === 'string' ? err.message.toLowerCase() : '';
@@ -83,7 +163,7 @@ export async function sendUsdcOnBase({ to, amount }: SendUsdcParams): Promise<st
     }
 
     // Execute the transfer
-    const tx = await usdc.transfer(to, value);
+    const tx = await usdc.transfer(toAddress, value);
     console.log("Tx enviada:", tx.hash);
 
     // Wait for confirmation

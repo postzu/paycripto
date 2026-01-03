@@ -168,7 +168,7 @@ export function useQrCameraScanner({
         }
 
         if (videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
-            animationFrameRef.current = requestAnimationFrame(processFrame);
+            animationFrameRef.current = requestAnimationFrame(processFrameRef.current);
             return;
         }
 
@@ -176,7 +176,7 @@ export function useQrCameraScanner({
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
-            animationFrameRef.current = requestAnimationFrame(processFrame);
+            animationFrameRef.current = requestAnimationFrame(processFrameRef.current);
             return;
         }
 
@@ -185,9 +185,7 @@ export function useQrCameraScanner({
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-        });
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code && code.data) {
             const { address, amount } = parseEthereumUrl(code.data);
@@ -204,8 +202,13 @@ export function useQrCameraScanner({
             }
         }
 
-        animationFrameRef.current = requestAnimationFrame(processFrame);
+        animationFrameRef.current = requestAnimationFrame(processFrameRef.current);
     }, [isOpen, normalizeAddress, onScan, onError, stopCamera]);
+
+    // Update ref for stable recursive access
+    useEffect(() => {
+        processFrameRef.current = processFrame;
+    }, [processFrame]);
 
     // Start the camera
     const startCamera = useCallback(async () => {
