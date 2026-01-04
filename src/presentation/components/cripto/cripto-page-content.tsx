@@ -36,6 +36,7 @@ import {
     Wallet,
     X,
     Zap,
+    TrendingUp,
     MoreHorizontal,
     Users,
     ScanLine
@@ -53,9 +54,9 @@ import { AssetsSection } from '@/presentation/components/cripto/assets-section';
 import { fetchAssetPrice, SUPPORTED_CHAINS } from '@/lib/currency';
 import { YieldCalculator } from '@/lib/yield-calculator';
 import { getAddress, WalletClient, Transport, Chain, Account, PublicClient } from 'viem';
-import { computeYieldFiatAvailable } from './yield-helpers';
+import { YieldSection } from '@/presentation/components/cripto/yield-section';
 
-type View = 'home' | 'recipients' | 'send' | 'newRecipient';
+type View = 'home' | 'invest' | 'recipients' | 'send' | 'newRecipient';
 type RecipientMode = 'new' | 'existing';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -212,6 +213,7 @@ const INITIAL_PAYMENT_GROUPS: PaymentGroup[] = [
             name: contact.name,
             address: contact.addresses[0]?.address || '',
             addressLabel: contact.addresses[0]?.label,
+            value: ['1600', '1600', '3200'][index] || '',
         })),
     },
 ];
@@ -487,23 +489,8 @@ export function CriptoPageContent({ }: CriptoPageContentProps) {
     }, [currencyFormatter]);
     const parsedBalance = Number.parseFloat(usdcBalance || '0');
     const hasBalance = Number.isFinite(parsedBalance) && parsedBalance > 0;
-    const yieldAvailablePrefix = t('Home.yield.availablePrefix');
-    const zeroBalanceYieldMessage = t('Home.yield.zeroBalanceMessage');
-    const yieldFiatAvailable = useMemo(
-        () =>
-            computeYieldFiatAvailable({
-                showBalance,
-                isLoadingBalance,
-                hasBalance,
-                fiatValue,
-                formatter: currencyFormatter,
-                zeroBalanceMessage: zeroBalanceYieldMessage,
-                availablePrefix: `${yieldAvailablePrefix} `,
-                percentage: 0.3,
-            }),
-        [showBalance, isLoadingBalance, hasBalance, fiatValue, currencyFormatter, zeroBalanceYieldMessage, yieldAvailablePrefix]
-    );
-    const yieldAvailableDisplay = yieldFiatAvailable.showApproxSymbol ? `≈ ${yieldFiatAvailable.display}` : yieldFiatAvailable.display;
+
+
     const balanceValue = showBalance ? (isLoadingBalance ? '...' : usdcBalance) : '*****';
     const showFiatLine = showBalance && !isLoadingBalance;
     const balanceToggleLabel = showBalance ? t('Home.balance.hide') : t('Home.balance.show');
@@ -1346,11 +1333,13 @@ export function CriptoPageContent({ }: CriptoPageContentProps) {
     const viewTitle =
         view === 'home'
             ? t('Home.title')
-            : view === 'recipients'
-                ? t('Recipients.title')
-                : view === 'send'
-                    ? t('Send.title')
-                    : t('Recipients.newRecipientTitle');
+            : view === 'invest'
+                ? t('Home.invest.title')
+                : view === 'recipients'
+                    ? t('Recipients.title')
+                    : view === 'send'
+                        ? t('Send.title')
+                        : t('Recipients.newRecipientTitle');
 
     return (
         <div className="min-h-screen bg-dark text-white font-sans flex flex-col">
@@ -1541,40 +1530,6 @@ export function CriptoPageContent({ }: CriptoPageContentProps) {
                                         )}
                                     </Card>
 
-                                    {/* Yield Section (99Pay Style) */}
-                                    <button
-                                        onClick={() => setShowYieldModal(true)}
-                                        className="w-full text-left group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10 active:scale-[0.98]"
-                                    >
-                                        <div className="relative z-10 flex items-center justify-between gap-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
-                                                    <ArrowUpRight size={20} strokeWidth={2.5} />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <p className="text-sm font-semibold text-white/90">{t('Home.yield.title')}</p>
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
-                                                            {t('Home.yield.estimatedRate')}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-white/60 leading-relaxed">
-                                                        {t('Home.yield.subtitle')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end text-right">
-                                                <span className="text-[11px] uppercase tracking-[0.14em] text-white/50">
-                                                    {t('Home.yield.availableLabel')}
-                                                </span>
-                                                <p className="text-xl font-bold text-white leading-tight">{yieldAvailableDisplay}</p>
-                                                <p className="text-[10px] text-white/40">{t('Home.yield.fiatSuffix')}</p>
-                                            </div>
-                                        </div>
-                                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                            <ArrowUpRight size={60} strokeWidth={2} />
-                                        </div>
-                                    </button>
                                 </>
                             ) : (
                                 <Card className="bg-dark-surface border border-white/10 p-6 text-center">
@@ -1769,6 +1724,22 @@ export function CriptoPageContent({ }: CriptoPageContentProps) {
                                     <AssetsSection preview />
                                 )}
 
+                                {/* Invest (Row) */}
+                                <button
+                                    type="button"
+                                    onClick={() => setView('invest')}
+                                    className="w-full flex items-center justify-between group py-3 px-1 transition-colors rounded-lg hover:bg-white/5"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <StandardIcon icon={TrendingUp} />
+                                        <div className="text-left">
+                                            <p className="text-sm font-medium text-white/90">{t('Home.invest.title')}</p>
+                                            <p className="text-xs text-white/50">{t('Home.invest.subtitle')}</p>
+                                        </div>
+                                    </div>
+                                    <ArrowRight size={16} className="text-white/40" />
+                                </button>
+
                                 {/* History (Row) */}
                                 <div className="overflow-hidden">
                                     <button
@@ -1942,6 +1913,23 @@ export function CriptoPageContent({ }: CriptoPageContentProps) {
                                     </div>
                                 </Card>
                             ) : null}
+                        </motion.div>
+                    )}
+
+                    {/* Invest View */}
+                    {view === 'invest' && (
+                        <motion.div
+                            key="invest"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
+                        >
+                            <div className="space-y-1">
+                                <h2 className="text-lg font-semibold text-white">{t('Home.invest.title')}</h2>
+                                <p className="text-sm text-white/60">{t('Home.invest.subtitle')}</p>
+                            </div>
+                            <YieldSection />
                         </motion.div>
                     )}
 

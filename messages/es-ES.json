@@ -43,6 +43,10 @@
             "tooltip": "La conversion es solo informativa y puede variar con el mercado.",
             "description": "Saldo total (USDC). Conversion estimada en fiat."
         },
+        "invest": {
+            "title": "Invertir",
+            "subtitle": "Gana rendimiento manteniendo USDC"
+        },
         "yield": {
             "title": "Rendimiento (USDC)",
             "subtitle": "Tu dinero puede rendir mas",

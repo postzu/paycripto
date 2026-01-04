@@ -43,6 +43,10 @@
             "tooltip": "Conversion is informational only and can change with the market.",
             "description": "Total balance (USDC). Estimated conversion in fiat."
         },
+        "invest": {
+            "title": "Invest",
+            "subtitle": "Earn yield by holding USDC"
+        },
         "yield": {
             "title": "Yield (USDC)",
             "subtitle": "Your money could earn more",

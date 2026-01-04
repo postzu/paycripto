@@ -274,6 +274,10 @@
                 "footer": "O PayCrypto nao executa transacoes em lote neste momento."
             }
         },
+        "invest": {
+            "title": "Investir",
+            "subtitle": "Ganhe rendimento mantendo USDC"
+        },
         "yield": {
             "title": "Rendimento (USDC)",
             "subtitle": "Seu dinheiro pode render mais",
